@@ -86,6 +86,10 @@
     .moderator-row { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid #36344e; font-size: 12px; }
     .operation-row { padding: 10px 0; border-bottom: 1px solid #36344e; font-size: 12px; }
     .remove { border: 0; background: transparent; color: #ff8b83; cursor: pointer; }
+    .counter-tools { display: none; margin-top: 18px; padding: 16px; border: 1px solid #484568; border-radius: 16px; background: #242436; }
+    .counter-tools.open { display: block; }
+    .counter-tools form { display: grid; gap: 8px; margin-bottom: 14px; }
+    select { width: 100%; padding: 11px; border: 1px solid #383550; border-radius: 12px; background: #161524; color: white; }
     .book-button { display: block; width: 100%; margin-top: 14px; border: 0; border-radius: 12px; padding: 12px; background: var(--orange); color: #17131f; font-weight: 800; cursor: pointer; }
     .book-button:hover { filter: brightness(1.08); }
     .booking-form { display: none; gap: 8px; margin-top: 12px; }
@@ -191,6 +195,14 @@
           <button class="book-button" type="submit">Create operation record</button>
         </form>
         <div id="operation-list"></div>
+        <section class="counter-tools" id="counter-tools">
+          <h2>Counter Desk</h2>
+          <form id="service-request-form"><input name="vehicleId" placeholder="Vehicle ID / registration" required /><input name="service" placeholder="Service entry details" required /><input name="location" placeholder="Vehicle location" /><button class="book-button">Send service approval request</button></form>
+          <form id="ticket-form"><input name="passenger" placeholder="Passenger name / phone" required /><input name="vehicleId" placeholder="Vehicle ID / registration" required /><input name="destination" placeholder="Target destination" required /><input name="amount" type="number" min="0" placeholder="Ticket amount" required /><button class="book-button">Book passenger ticket</button></form>
+          <form id="refund-form"><input name="ticketId" placeholder="Ticket ID" required /><input name="reason" placeholder="Refund reason" required /><input name="refundFee" type="number" min="0" placeholder="Refund fee (optional)" /><button class="book-button">Submit refund request</button></form>
+          <form id="incident-form"><select name="type"><option>CRASH_REPORT</option><option>BREAKDOWN_REPORT</option><option>EMERGENCY</option><option>LOCATION_SHARE</option><option>STAFF_CONTACT</option></select><input name="vehicleId" placeholder="Vehicle ID / registration" required /><input name="message" placeholder="Report details" required /><input name="location" placeholder="Share location / landmark" /><select name="contactChannel"><option>MESSAGE</option><option>VOICE</option><option>VIDEO</option></select><button class="book-button">Report to Moderator</button></form>
+          <div class="api-status" id="counter-result"></div>
+        </section>
       </section>
     </main>
     <nav>
@@ -230,6 +242,7 @@
           authGate.style.display = 'none';
           document.getElementById('staff-panel').classList.add('open');
           document.getElementById('staff-role').textContent = result.role;
+          if (result.role === 'COUNTER_STAFF') document.getElementById('counter-tools').classList.add('open');
           loadModerators();
           loadOperations();
         } catch (error) { authError.textContent = error.message; }
@@ -244,7 +257,7 @@
       const loadOperations = async () => {
         const response = await fetch('/api/admin/operations', { headers: { Authorization: `Bearer ${staffToken}` } });
         const result = await response.json();
-        document.getElementById('operation-list').innerHTML = result.operations.map((item) => `<div class="operation-row"><strong>${item.type}</strong> · ${item.status}<br>${item.message}${item.type === 'CASH_REQUEST' && item.status === 'OPEN' ? ` <button class="remove approve" data-id="${item.id}">Approve</button>` : ''}</div>`).join('');
+        document.getElementById('operation-list').innerHTML = result.operations.map((item) => `<div class="operation-row"><strong>${item.type}</strong> · ${item.status}<br>${item.message}${['CASH_REQUEST', 'VEHICLE_SERVICE_REQUEST', 'REFUND_REQUEST'].includes(item.type) && item.status !== 'APPROVED' && staffRole !== 'COUNTER_STAFF' ? ` <button class="remove approve" data-id="${item.id}">Approve</button>` : ''}</div>`).join('');
       };
       document.getElementById('moderator-form').addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -268,6 +281,16 @@
         await fetch(`/api/admin/operations/${event.target.dataset.id}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${staffToken}` } });
         loadOperations();
       });
+      const counterPost = async (path, form) => {
+        const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${staffToken}` }, body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+        const result = await response.json();
+        document.getElementById('counter-result').textContent = response.ok ? `Saved: ${result.id}` : (result.error || 'Request failed');
+        if (response.ok) loadOperations();
+      };
+      document.getElementById('service-request-form').addEventListener('submit', (event) => { event.preventDefault(); counterPost('/api/counter/vehicle-service-request', event.target); });
+      document.getElementById('ticket-form').addEventListener('submit', (event) => { event.preventDefault(); counterPost('/api/counter/ticket-booking', event.target); });
+      document.getElementById('refund-form').addEventListener('submit', (event) => { event.preventDefault(); counterPost('/api/counter/refund-request', event.target); });
+      document.getElementById('incident-form').addEventListener('submit', (event) => { event.preventDefault(); counterPost('/api/counter/incident', event.target); });
       const loadSummary = async () => {
         const response = await fetch('/api/summary');
         if (!response.ok) throw new Error('API request failed');

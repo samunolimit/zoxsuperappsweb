@@ -113,7 +113,7 @@ const server = http.createServer((request, response) => {
   if (request.method === 'POST' && request.url === '/api/admin/operations') {
     if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'])) return sendJson(response, 403, { error: 'Staff access required' });
     return readJson(request).then((input) => {
-      const allowedTypes = ['REQUEST', 'COMPLAINT', 'EMERGENCY', 'FEEDBACK', 'ANNOUNCEMENT', 'CASH_REQUEST', 'USER'];
+      const allowedTypes = ['REQUEST', 'COMPLAINT', 'EMERGENCY', 'FEEDBACK', 'ANNOUNCEMENT', 'CASH_REQUEST', 'USER', 'VEHICLE_SERVICE_REQUEST', 'TICKET_BOOKING', 'REFUND_REQUEST', 'CRASH_REPORT', 'BREAKDOWN_REPORT', 'LOCATION_SHARE', 'STAFF_CONTACT'];
       if (!allowedTypes.includes(input?.type) || !String(input?.message || '').trim()) return sendJson(response, 400, { error: 'Operation type and message are required' });
       const user = authUser(request);
       const operation = { id: crypto.randomUUID(), type: input.type, message: String(input.message).trim(), status: 'OPEN', createdBy: user.phone, createdAt: new Date().toISOString() };
@@ -121,12 +121,50 @@ const server = http.createServer((request, response) => {
       return sendJson(response, 201, operation);
     });
   }
+  if (request.method === 'POST' && request.url === '/api/counter/vehicle-service-request') {
+    if (!requireRole(request, ['COUNTER_STAFF'])) return sendJson(response, 403, { error: 'Counter Staff access required' });
+    return readJson(request).then((input) => {
+      if (!input?.vehicleId || !String(input.service || '').trim()) return sendJson(response, 400, { error: 'Vehicle and service details are required' });
+      const user = authUser(request); const operations = readOperations();
+      const item = { id: crypto.randomUUID(), type: 'VEHICLE_SERVICE_REQUEST', vehicleId: String(input.vehicleId), message: String(input.service).trim(), location: input.location || null, status: 'PENDING_APPROVAL', createdBy: user.phone, createdAt: new Date().toISOString() };
+      operations.unshift(item); writeOperations(operations); return sendJson(response, 201, item);
+    });
+  }
+  if (request.method === 'POST' && request.url === '/api/counter/ticket-booking') {
+    if (!requireRole(request, ['COUNTER_STAFF'])) return sendJson(response, 403, { error: 'Counter Staff access required' });
+    return readJson(request).then((input) => {
+      if (!input?.passenger || !input?.destination || !input?.vehicleId) return sendJson(response, 400, { error: 'Passenger, vehicle and destination are required' });
+      const user = authUser(request); const bookings = readBookings();
+      const ticket = { id: crypto.randomUUID(), service: 'Route Passenger Ticket', passenger: input.passenger, destination: input.destination, vehicleId: input.vehicleId, amount: Number(input.amount || 0), status: 'BOOKED', bookedBy: user.phone, destinationReached: false, createdAt: new Date().toISOString() };
+      bookings.unshift(ticket); writeBookings(bookings); return sendJson(response, 201, ticket);
+    });
+  }
+  if (request.method === 'POST' && request.url === '/api/counter/refund-request') {
+    if (!requireRole(request, ['COUNTER_STAFF'])) return sendJson(response, 403, { error: 'Counter Staff access required' });
+    return readJson(request).then((input) => {
+      if (!input?.ticketId || !input?.reason) return sendJson(response, 400, { error: 'Ticket and refund reason are required' });
+      const user = authUser(request); const operations = readOperations();
+      const item = { id: crypto.randomUUID(), type: 'REFUND_REQUEST', ticketId: input.ticketId, message: String(input.reason), refundFee: Math.max(0, Number(input.refundFee || 0)), status: 'PENDING_APPROVAL', createdBy: user.phone, createdAt: new Date().toISOString() };
+      operations.unshift(item); writeOperations(operations); return sendJson(response, 201, item);
+    });
+  }
+  if (request.method === 'POST' && request.url === '/api/counter/incident') {
+    if (!requireRole(request, ['COUNTER_STAFF'])) return sendJson(response, 403, { error: 'Counter Staff access required' });
+    return readJson(request).then((input) => {
+      const allowed = ['CRASH_REPORT', 'BREAKDOWN_REPORT', 'EMERGENCY', 'LOCATION_SHARE', 'STAFF_CONTACT'];
+      if (!allowed.includes(input?.type) || !input?.vehicleId || !input?.message) return sendJson(response, 400, { error: 'Incident type, vehicle and message are required' });
+      const user = authUser(request); const operations = readOperations();
+      const item = { id: crypto.randomUUID(), type: input.type, vehicleId: String(input.vehicleId), message: String(input.message), location: input.location || null, contactChannel: input.contactChannel || 'MESSAGE', status: 'OPEN', createdBy: user.phone, createdAt: new Date().toISOString() };
+      operations.unshift(item); writeOperations(operations); return sendJson(response, 201, item);
+    });
+  }
   if (request.method === 'POST' && request.url.startsWith('/api/admin/operations/') && request.url.endsWith('/approve')) {
     if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'])) return sendJson(response, 403, { error: 'Staff access required' });
     const id = request.url.split('/').slice(-2)[0];
     const operations = readOperations();
-    const index = operations.findIndex((item) => item.id === id && item.type === 'CASH_REQUEST');
-    if (index < 0) return sendJson(response, 404, { error: 'Cash request not found' });
+    const index = operations.findIndex((item) => item.id === id && ['CASH_REQUEST', 'VEHICLE_SERVICE_REQUEST', 'REFUND_REQUEST'].includes(item.type));
+    if (index < 0) return sendJson(response, 404, { error: 'Approval request not found' });
+    if (['VEHICLE_SERVICE_REQUEST', 'REFUND_REQUEST'].includes(operations[index].type) && !requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Moderator or Super Admin approval required' });
     operations[index].status = 'APPROVED'; operations[index].approvedAt = new Date().toISOString();
     writeOperations(operations); return sendJson(response, 200, operations[index]);
   }

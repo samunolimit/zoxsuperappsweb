@@ -49,6 +49,23 @@ $route = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
 if ($route === '/api/health' || str_ends_with($route, '/health')) reply(['ok' => true, 'service' => 'zox-php-api']);
 
 $input = json_decode((string) file_get_contents('php://input'), true);
+$current = bookings($dataFile, $dataDir, $initialBookings);
+$staff = staffUser($authFile);
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && str_starts_with($route, '/api/counter/')) {
+    if (($staff['role'] ?? '') !== 'COUNTER_STAFF') reply(['error' => 'Counter Staff access required'], 403);
+    $kind = basename($route);
+    $types = ['vehicle-service-request' => 'VEHICLE_SERVICE_REQUEST', 'refund-request' => 'REFUND_REQUEST', 'incident' => (string) ($input['type'] ?? '')];
+    if ($kind === 'ticket-booking') {
+        if (empty($input['passenger']) || empty($input['vehicleId']) || empty($input['destination'])) reply(['error' => 'Passenger, vehicle and destination are required'], 400);
+        $ticket = ['id' => bin2hex(random_bytes(12)), 'service' => 'Route Passenger Ticket', 'passenger' => (string) $input['passenger'], 'vehicleId' => (string) $input['vehicleId'], 'destination' => (string) $input['destination'], 'amount' => (float) ($input['amount'] ?? 0), 'status' => 'BOOKED', 'bookedBy' => $staff['phone'], 'destinationReached' => false, 'createdAt' => date(DATE_ATOM)];
+        saveStored($dataFile, array_merge([$ticket], $current)); reply($ticket, 201);
+    }
+    if ($kind === 'vehicle-service-request' && (empty($input['vehicleId']) || empty($input['service']))) reply(['error' => 'Vehicle and service details are required'], 400);
+    if ($kind === 'refund-request' && (empty($input['ticketId']) || empty($input['reason']))) reply(['error' => 'Ticket and refund reason are required'], 400);
+    if ($kind === 'incident' && (!in_array($types[$kind], ['CRASH_REPORT', 'BREAKDOWN_REPORT', 'EMERGENCY', 'LOCATION_SHARE', 'STAFF_CONTACT'], true) || empty($input['vehicleId']) || empty($input['message']))) reply(['error' => 'Incident type, vehicle and message are required'], 400);
+    $operation = ['id' => bin2hex(random_bytes(12)), 'type' => $types[$kind], 'vehicleId' => $input['vehicleId'] ?? null, 'ticketId' => $input['ticketId'] ?? null, 'message' => (string) ($input['service'] ?? $input['reason'] ?? $input['message'] ?? ''), 'location' => $input['location'] ?? null, 'refundFee' => (float) ($input['refundFee'] ?? 0), 'contactChannel' => $input['contactChannel'] ?? 'MESSAGE', 'status' => in_array($types[$kind], ['VEHICLE_SERVICE_REQUEST', 'REFUND_REQUEST'], true) ? 'PENDING_APPROVAL' : 'OPEN', 'createdBy' => $staff['phone'], 'createdAt' => date(DATE_ATOM)];
+    saveStored($operationsFile, array_merge([$operation], stored($operationsFile))); reply($operation, 201);
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/auth/request-pin' || str_ends_with($route, '/auth/request-pin'))) {
     $phone = (string) ($input['phone'] ?? '');
     $adminPhone = getenv('ADMIN_PHONE') ?: '9378160106';
@@ -105,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/admin/operations' 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/admin/operations' || str_ends_with($route, '/admin/operations'))) {
     $staff = staffUser($authFile);
     if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'], true)) reply(['error' => 'Staff access required'], 403);
-    $allowed = ['REQUEST', 'COMPLAINT', 'EMERGENCY', 'FEEDBACK', 'ANNOUNCEMENT', 'CASH_REQUEST', 'USER'];
+    $allowed = ['REQUEST', 'COMPLAINT', 'EMERGENCY', 'FEEDBACK', 'ANNOUNCEMENT', 'CASH_REQUEST', 'USER', 'VEHICLE_SERVICE_REQUEST', 'TICKET_BOOKING', 'REFUND_REQUEST', 'CRASH_REPORT', 'BREAKDOWN_REPORT', 'LOCATION_SHARE', 'STAFF_CONTACT'];
     $type = (string) ($input['type'] ?? '');
     $message = trim((string) ($input['message'] ?? ''));
     if (!in_array($type, $allowed, true) || $message === '') reply(['error' => 'Operation type and message are required'], 400);
@@ -117,7 +134,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && preg_match('#/(?:api/)?admin/operat
     $staff = staffUser($authFile);
     if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'], true)) reply(['error' => 'Staff access required'], 403);
     $operations = stored($operationsFile);
-    foreach ($operations as $index => $operation) if ($operation['id'] === $match[1] && $operation['type'] === 'CASH_REQUEST') {
+    foreach ($operations as $index => $operation) if ($operation['id'] === $match[1] && in_array($operation['type'], ['CASH_REQUEST', 'VEHICLE_SERVICE_REQUEST', 'REFUND_REQUEST'], true)) {
+        if (in_array($operation['type'], ['VEHICLE_SERVICE_REQUEST', 'REFUND_REQUEST'], true) && !in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR'], true)) reply(['error' => 'Moderator or Super Admin approval required'], 403);
         $operations[$index]['status'] = 'APPROVED';
         $operations[$index]['approvedAt'] = date(DATE_ATOM);
         saveStored($operationsFile, $operations);
@@ -126,7 +144,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && preg_match('#/(?:api/)?admin/operat
     reply(['error' => 'Cash request not found'], 404);
 }
 
-$current = bookings($dataFile, $dataDir, $initialBookings);
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/summary' || str_ends_with($route, '/summary'))) {
     reply([
         'user' => ['name' => 'Lalremruata Ralte', 'city' => 'Aizawl, Mizoram', 'wallet' => 1450, 'coins' => 380],
