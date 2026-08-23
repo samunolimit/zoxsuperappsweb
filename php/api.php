@@ -16,6 +16,8 @@ $dataFile = $dataDir . '/zox.json';
 $moderatorsFile = $dataDir . '/moderators.json';
 $authFile = $dataDir . '/auth.json';
 $operationsFile = $dataDir . '/operations.json';
+$faresFile = $dataDir . '/fares.json';
+$walletFile = $dataDir . '/wallet-ledger.json';
 $initialBookings = [
     ['id' => 1, 'service' => 'Motor Hire', 'pickup' => 'Chanmari Hub', 'destination' => 'Chanmari Hub', 'amount' => 480, 'status' => 'ON THE WAY'],
     ['id' => 2, 'service' => 'Tirhkah Express', 'pickup' => 'Civil Hospital', 'destination' => 'Khatla South', 'amount' => 125, 'status' => 'COMPLETED'],
@@ -55,10 +57,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && str_starts_with($route, '/api/count
     if (($staff['role'] ?? '') !== 'COUNTER_STAFF') reply(['error' => 'Counter Staff access required'], 403);
     $kind = basename($route);
     $types = ['vehicle-service-request' => 'VEHICLE_SERVICE_REQUEST', 'refund-request' => 'REFUND_REQUEST', 'incident' => (string) ($input['type'] ?? '')];
+    if ($kind === 'fares') {
+        $routeName = trim((string) ($input['route'] ?? '')); $vehicleType = trim((string) ($input['vehicleType'] ?? '')); $amount = (float) ($input['amount'] ?? 0);
+        if ($routeName === '' || $vehicleType === '' || $amount <= 0) reply(['error' => 'Route, vehicle type and positive fare are required'], 400);
+        $fares = array_values(array_filter(stored($faresFile), fn ($item) => $item['route'] !== $routeName || $item['vehicleType'] !== $vehicleType));
+        $fare = ['id' => bin2hex(random_bytes(12)), 'route' => $routeName, 'vehicleType' => $vehicleType, 'amount' => round($amount, 2), 'updatedBy' => $staff['phone'], 'updatedAt' => date(DATE_ATOM)];
+        saveStored($faresFile, array_merge([$fare], $fares)); reply($fare, 201);
+    }
     if ($kind === 'ticket-booking') {
         if (empty($input['passenger']) || empty($input['vehicleId']) || empty($input['destination'])) reply(['error' => 'Passenger, vehicle and destination are required'], 400);
-        $ticket = ['id' => bin2hex(random_bytes(12)), 'service' => 'Route Passenger Ticket', 'passenger' => (string) $input['passenger'], 'vehicleId' => (string) $input['vehicleId'], 'destination' => (string) $input['destination'], 'amount' => (float) ($input['amount'] ?? 0), 'status' => 'BOOKED', 'bookedBy' => $staff['phone'], 'destinationReached' => false, 'createdAt' => date(DATE_ATOM)];
-        saveStored($dataFile, array_merge([$ticket], $current)); reply($ticket, 201);
+        $fare = array_values(array_filter(stored($faresFile), fn ($item) => $item['route'] === ($input['route'] ?? '') && $item['vehicleType'] === ($input['vehicleType'] ?? '')))[0] ?? null;
+        $amount = (float) ($fare['amount'] ?? 0); $rate = (float) (getenv('COMMISSION_RATE') ?: 10); $commission = round($amount * $rate / 100, 2);
+        if ($amount <= 0) reply(['error' => 'No fare configured for this route and vehicle'], 400);
+        $ticket = ['id' => bin2hex(random_bytes(12)), 'service' => 'Route Passenger Ticket', 'passenger' => (string) $input['passenger'], 'route' => (string) ($input['route'] ?? ''), 'vehicleType' => (string) ($input['vehicleType'] ?? ''), 'vehicleId' => (string) $input['vehicleId'], 'destination' => (string) $input['destination'], 'amount' => $amount, 'commissionRate' => $rate, 'commission' => $commission, 'status' => 'BOOKED', 'bookedBy' => $staff['phone'], 'destinationReached' => false, 'createdAt' => date(DATE_ATOM)];
+        saveStored($dataFile, array_merge([$ticket], $current));
+        $ledger = stored($walletFile); $ledger[] = ['id' => bin2hex(random_bytes(12)), 'account' => $staff['phone'], 'type' => 'COMMISSION', 'ticketId' => $ticket['id'], 'amount' => $commission, 'status' => 'CREDITED', 'createdAt' => date(DATE_ATOM)]; saveStored($walletFile, $ledger);
+        reply($ticket, 201);
     }
     if ($kind === 'vehicle-service-request' && (empty($input['vehicleId']) || empty($input['service']))) reply(['error' => 'Vehicle and service details are required'], 400);
     if ($kind === 'refund-request' && (empty($input['ticketId']) || empty($input['reason']))) reply(['error' => 'Ticket and refund reason are required'], 400);

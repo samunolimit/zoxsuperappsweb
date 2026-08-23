@@ -9,6 +9,8 @@ const dataDir = path.join(__dirname, '..', 'data');
 const dataFile = path.join(dataDir, 'zox.json');
 const moderatorsFile = path.join(dataDir, 'moderators.json');
 const operationsFile = path.join(dataDir, 'operations.json');
+const faresFile = path.join(dataDir, 'fares.json');
+const walletFile = path.join(dataDir, 'wallet-ledger.json');
 fs.mkdirSync(dataDir, { recursive: true });
 
 const initialBookings = [
@@ -30,6 +32,10 @@ function readOperations() {
   return JSON.parse(fs.readFileSync(operationsFile, 'utf8'));
 }
 function writeOperations(operations) { fs.writeFileSync(operationsFile, JSON.stringify(operations, null, 2)); }
+function readFares() { if (!fs.existsSync(faresFile)) fs.writeFileSync(faresFile, '[]'); return JSON.parse(fs.readFileSync(faresFile, 'utf8')); }
+function writeFares(fares) { fs.writeFileSync(faresFile, JSON.stringify(fares, null, 2)); }
+function readWalletLedger() { if (!fs.existsSync(walletFile)) fs.writeFileSync(walletFile, '[]'); return JSON.parse(fs.readFileSync(walletFile, 'utf8')); }
+function writeWalletLedger(entries) { fs.writeFileSync(walletFile, JSON.stringify(entries, null, 2)); }
 const sessions = new Map();
 const pinRequests = new Map();
 const adminPhone = process.env.ADMIN_PHONE || '9378160106';
@@ -130,13 +136,28 @@ const server = http.createServer((request, response) => {
       operations.unshift(item); writeOperations(operations); return sendJson(response, 201, item);
     });
   }
+  if (request.method === 'POST' && request.url === '/api/counter/fares') {
+    if (!requireRole(request, ['COUNTER_STAFF'])) return sendJson(response, 403, { error: 'Counter Staff access required' });
+    return readJson(request).then((input) => {
+      const route = String(input?.route || '').trim(); const vehicleType = String(input?.vehicleType || '').trim(); const amount = Number(input?.amount);
+      if (!route || !vehicleType || !Number.isFinite(amount) || amount <= 0) return sendJson(response, 400, { error: 'Route, vehicle type and positive fare are required' });
+      const fare = { id: crypto.randomUUID(), route, vehicleType, amount: Math.round(amount * 100) / 100, updatedBy: authUser(request).phone, updatedAt: new Date().toISOString() };
+      const fares = readFares().filter((item) => item.route !== route || item.vehicleType !== vehicleType); fares.unshift(fare); writeFares(fares);
+      return sendJson(response, 201, fare);
+    });
+  }
   if (request.method === 'POST' && request.url === '/api/counter/ticket-booking') {
     if (!requireRole(request, ['COUNTER_STAFF'])) return sendJson(response, 403, { error: 'Counter Staff access required' });
     return readJson(request).then((input) => {
-      if (!input?.passenger || !input?.destination || !input?.vehicleId) return sendJson(response, 400, { error: 'Passenger, vehicle and destination are required' });
+      if (!input?.passenger || !input?.destination || !input?.vehicleId || !input?.route || !input?.vehicleType) return sendJson(response, 400, { error: 'Passenger, route, vehicle type, vehicle and destination are required' });
       const user = authUser(request); const bookings = readBookings();
-      const ticket = { id: crypto.randomUUID(), service: 'Route Passenger Ticket', passenger: input.passenger, destination: input.destination, vehicleId: input.vehicleId, amount: Number(input.amount || 0), status: 'BOOKED', bookedBy: user.phone, destinationReached: false, createdAt: new Date().toISOString() };
-      bookings.unshift(ticket); writeBookings(bookings); return sendJson(response, 201, ticket);
+      const fare = readFares().find((item) => item.route === String(input.route) && item.vehicleType === String(input.vehicleType));
+      const amount = Number(fare?.amount || 0); const commissionRate = Number(process.env.COMMISSION_RATE || 10); const commission = Math.round(amount * commissionRate) / 100;
+      if (amount <= 0) return sendJson(response, 400, { error: 'No fare configured for this route and vehicle' });
+      const ticket = { id: crypto.randomUUID(), service: 'Route Passenger Ticket', passenger: input.passenger, route: input.route, vehicleType: input.vehicleType, destination: input.destination, vehicleId: input.vehicleId, amount, commissionRate, commission, status: 'BOOKED', bookedBy: user.phone, destinationReached: false, createdAt: new Date().toISOString() };
+      bookings.unshift(ticket); writeBookings(bookings);
+      const ledger = readWalletLedger(); ledger.unshift({ id: crypto.randomUUID(), account: user.phone, type: 'COMMISSION', ticketId: ticket.id, amount: commission, status: 'CREDITED', createdAt: new Date().toISOString() }); writeWalletLedger(ledger);
+      return sendJson(response, 201, ticket);
     });
   }
   if (request.method === 'POST' && request.url === '/api/counter/refund-request') {

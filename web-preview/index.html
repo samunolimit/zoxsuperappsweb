@@ -198,7 +198,8 @@
         <section class="counter-tools" id="counter-tools">
           <h2>Counter Desk</h2>
           <form id="service-request-form"><input name="vehicleId" placeholder="Vehicle ID / registration" required /><input name="service" placeholder="Service entry details" required /><input name="location" placeholder="Vehicle location" /><button class="book-button">Send service approval request</button></form>
-          <form id="ticket-form"><input name="passenger" placeholder="Passenger name / phone" required /><input name="vehicleId" placeholder="Vehicle ID / registration" required /><input name="destination" placeholder="Target destination" required /><input name="amount" type="number" min="0" placeholder="Ticket amount" required /><button class="book-button">Book passenger ticket</button></form>
+          <form id="fare-form"><input name="route" placeholder="Route (Aizawl - Lunglei)" required /><input name="vehicleType" placeholder="Vehicle type" required /><input name="amount" type="number" min="1" placeholder="Ticket fare" required /><button class="book-button">Save route fare</button></form>
+          <form id="ticket-form"><input name="passenger" placeholder="Passenger name / phone" required /><input name="route" placeholder="Route" required /><input name="vehicleType" placeholder="Vehicle type" required /><input name="vehicleId" placeholder="Vehicle ID / registration" required /><input name="destination" placeholder="Target destination" required /><button class="book-button">Book passenger ticket</button></form>
           <form id="refund-form"><input name="ticketId" placeholder="Ticket ID" required /><input name="reason" placeholder="Refund reason" required /><input name="refundFee" type="number" min="0" placeholder="Refund fee (optional)" /><button class="book-button">Submit refund request</button></form>
           <form id="incident-form"><select name="type"><option>CRASH_REPORT</option><option>BREAKDOWN_REPORT</option><option>EMERGENCY</option><option>LOCATION_SHARE</option><option>STAFF_CONTACT</option></select><input name="vehicleId" placeholder="Vehicle ID / registration" required /><input name="message" placeholder="Report details" required /><input name="location" placeholder="Share location / landmark" /><select name="contactChannel"><option>MESSAGE</option><option>VOICE</option><option>VIDEO</option></select><button class="book-button">Report to Moderator</button></form>
           <div class="api-status" id="counter-result"></div>
@@ -288,6 +289,7 @@
         if (response.ok) loadOperations();
       };
       document.getElementById('service-request-form').addEventListener('submit', (event) => { event.preventDefault(); counterPost('/api/counter/vehicle-service-request', event.target); });
+      document.getElementById('fare-form').addEventListener('submit', (event) => { event.preventDefault(); counterPost('/api/counter/fares', event.target); });
       document.getElementById('ticket-form').addEventListener('submit', (event) => { event.preventDefault(); counterPost('/api/counter/ticket-booking', event.target); });
       document.getElementById('refund-form').addEventListener('submit', (event) => { event.preventDefault(); counterPost('/api/counter/refund-request', event.target); });
       document.getElementById('incident-form').addEventListener('submit', (event) => { event.preventDefault(); counterPost('/api/counter/incident', event.target); });
