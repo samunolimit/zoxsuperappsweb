@@ -122,6 +122,7 @@ const server = http.createServer((request, response) => {
       const allowedTypes = ['REQUEST', 'COMPLAINT', 'EMERGENCY', 'FEEDBACK', 'ANNOUNCEMENT', 'CASH_REQUEST', 'USER', 'VEHICLE_SERVICE_REQUEST', 'TICKET_BOOKING', 'REFUND_REQUEST', 'CRASH_REPORT', 'BREAKDOWN_REPORT', 'LOCATION_SHARE', 'STAFF_CONTACT'];
       if (!allowedTypes.includes(input?.type) || !String(input?.message || '').trim()) return sendJson(response, 400, { error: 'Operation type and message are required' });
       const user = authUser(request);
+      if (user.role === 'COUNTER_STAFF') return sendJson(response, 403, { error: 'Use the Counter Desk panel for Counter operations' });
       const operation = { id: crypto.randomUUID(), type: input.type, message: String(input.message).trim(), status: 'OPEN', createdBy: user.phone, createdAt: new Date().toISOString() };
       const operations = readOperations(); operations.unshift(operation); writeOperations(operations);
       return sendJson(response, 201, operation);

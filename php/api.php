@@ -141,6 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/admin/operations' 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/admin/operations' || str_ends_with($route, '/admin/operations'))) {
     $staff = staffUser($authFile);
     if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'], true)) reply(['error' => 'Staff access required'], 403);
+    if (($staff['role'] ?? '') === 'COUNTER_STAFF') reply(['error' => 'Use the Counter Desk panel for Counter operations'], 403);
     $allowed = ['REQUEST', 'COMPLAINT', 'EMERGENCY', 'FEEDBACK', 'ANNOUNCEMENT', 'CASH_REQUEST', 'USER', 'VEHICLE_SERVICE_REQUEST', 'TICKET_BOOKING', 'REFUND_REQUEST', 'CRASH_REPORT', 'BREAKDOWN_REPORT', 'LOCATION_SHARE', 'STAFF_CONTACT'];
     $type = (string) ($input['type'] ?? '');
     $message = trim((string) ($input['message'] ?? ''));
