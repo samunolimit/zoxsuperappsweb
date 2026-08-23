@@ -257,6 +257,12 @@ class AppRepository {
     _transactions.update { listOf(newTx) + it }
   }
 
+  fun redeemRewardCoins(points: Int, pointsValueInRupees: Double) {
+    val cash = points * pointsValueInRupees
+    _wallet.update { it.copy(rewardCoins = it.rewardCoins - points, balanceInRupees = it.balanceInRupees + cash) }
+    _transactions.update { listOf(TransactionItem("tx_${System.currentTimeMillis().toString().takeLast(5)}", "Loyalty points redeemed", "Rewards", TransactionType.CREDIT, cash, "Just now", "${points} points converted to wallet cash")) + it }
+  }
+
   fun topUpWallet(amount: Double) {
     _wallet.update { it.copy(balanceInRupees = it.balanceInRupees + amount) }
     val newTx = TransactionItem(

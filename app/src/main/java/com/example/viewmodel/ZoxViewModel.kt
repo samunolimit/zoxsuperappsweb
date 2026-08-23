@@ -161,6 +161,16 @@ class ZoxViewModel(
     )
   }
 
+  fun redeemRewardCoins() {
+    val config = vaultConfig.value.admob
+    if (wallet.value.rewardCoins < config.redemptionMinimumPoints) {
+      _uiState.value = _uiState.value.copy(alertMessage = "You need at least ${config.redemptionMinimumPoints} points to redeem.")
+      return
+    }
+    repository.redeemRewardCoins(wallet.value.rewardCoins, config.pointsValueInRupees)
+    _uiState.value = _uiState.value.copy(alertMessage = "Points converted to wallet cash successfully.")
+  }
+
   fun triggerInterstitialAd() {
     if (vaultConfig.value.admob.isEnabled) {
       _uiState.value = _uiState.value.copy(showInterstitialAdModal = true)

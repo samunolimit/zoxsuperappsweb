@@ -295,6 +295,8 @@ fun ZoxSuperApp(
             wallet = wallet,
             transactions = transactions,
             isAdMobEnabled = vaultConfig.admob.isEnabled,
+            redemptionMinimumPoints = vaultConfig.admob.redemptionMinimumPoints,
+            onRedeemPointsClick = { viewModel.redeemRewardCoins() },
             onTopUpClick = { viewModel.toggleAddMoneyModal(true) },
             onWatchRewardedAdClick = { viewModel.triggerRewardedAd() }
           )

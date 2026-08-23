@@ -60,6 +60,8 @@ fun WalletScreen(
   wallet: WalletData,
   transactions: List<TransactionItem>,
   isAdMobEnabled: Boolean,
+  redemptionMinimumPoints: Int = 1000,
+  onRedeemPointsClick: () -> Unit = {},
   onTopUpClick: () -> Unit,
   onWatchRewardedAdClick: () -> Unit
 ) {
@@ -177,7 +179,7 @@ fun WalletScreen(
               }
 
               Text(
-                text = "100 Coins = ₹10 Cashback",
+                text = "Minimum ${redemptionMinimumPoints} points to redeem",
                 fontSize = 10.sp,
                 color = Color(0xFF7A7995)
               )
@@ -213,6 +215,18 @@ fun WalletScreen(
                 Icon(Icons.Default.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.size(4.dp))
                 Text("SEND UPI", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              }
+
+              Button(
+                onClick = onRedeemPointsClick,
+                modifier = Modifier.weight(1f).height(44.dp),
+                enabled = wallet.rewardCoins >= redemptionMinimumPoints,
+                colors = ButtonDefaults.buttonColors(containerColor = ZoxSuccess, contentColor = Color.Black),
+                shape = RoundedCornerShape(12.dp)
+              ) {
+                Icon(Icons.Default.MonetizationOn, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.size(4.dp))
+                Text("REDEEM CASH", fontSize = 11.sp, fontWeight = FontWeight.Black)
               }
             }
           }
