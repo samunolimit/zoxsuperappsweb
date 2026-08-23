@@ -273,7 +273,7 @@
       const loadPlugins = async () => {
         if (staffRole === 'COUNTER_STAFF') return;
         const response = await staffFetch('/api/admin/plugins'); const result = await response.json();
-        document.getElementById('plugin-list').innerHTML = result.plugins.map((item) => `<div class="plugin-row"><span>${item.id}<br>${item.enabled ? 'Enabled' : 'Disabled'}</span><button class="book-button plugin-toggle" data-id="${item.id}" data-enabled="${item.enabled}">${item.enabled ? 'Disable' : 'Enable'}</button></div>`).join('');
+        document.getElementById('plugin-list').innerHTML = result.plugins.map((item) => `<div class="plugin-row"><span>${item.id}<br>${item.enabled ? 'Enabled' : 'Disabled'}</span><span><button class="book-button plugin-config" data-id="${item.id}">Configure</button> <button class="book-button plugin-toggle" data-id="${item.id}" data-enabled="${item.enabled}">${item.enabled ? 'Disable' : 'Enable'}</button></span></div>`).join('');
       };
       const loadSystemEvents = async () => {
         if (staffRole === 'COUNTER_STAFF') return;
@@ -281,8 +281,14 @@
         document.getElementById('event-list').innerHTML = result.events.length ? result.events.map((item) => `<div class="event-row"><strong>${item.type}</strong><br>${item.message}<br><span class="tag">Fix: ${item.hint}</span></div>`).join('') : '<div class="api-status">No system errors reported.</div>';
       };
       document.getElementById('plugin-list').addEventListener('click', async (event) => {
-        if (!event.target.classList.contains('plugin-toggle')) return;
-        await staffFetch(`/api/admin/plugins/${event.target.dataset.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: event.target.dataset.enabled !== 'true' }) });
+        if (event.target.classList.contains('plugin-config')) {
+          const raw = window.prompt('Plugin config JSON', '{}');
+          if (raw === null) return;
+          try { JSON.parse(raw); } catch { window.alert('Enter valid JSON.'); return; }
+          await staffFetch(`/api/admin/plugins/${event.target.dataset.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: JSON.parse(raw) }) });
+        } else if (event.target.classList.contains('plugin-toggle')) {
+          await staffFetch(`/api/admin/plugins/${event.target.dataset.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: event.target.dataset.enabled !== 'true' }) });
+        } else return;
         loadPlugins();
       });
       const loadOperations = async () => {
