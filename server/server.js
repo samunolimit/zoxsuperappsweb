@@ -11,6 +11,8 @@ const moderatorsFile = path.join(dataDir, 'moderators.json');
 const operationsFile = path.join(dataDir, 'operations.json');
 const faresFile = path.join(dataDir, 'fares.json');
 const walletFile = path.join(dataDir, 'wallet-ledger.json');
+const pluginsFile = path.join(dataDir, 'plugins.json');
+const eventsFile = path.join(dataDir, 'system-events.json');
 fs.mkdirSync(dataDir, { recursive: true });
 
 const initialBookings = [
@@ -36,11 +38,19 @@ function readFares() { if (!fs.existsSync(faresFile)) fs.writeFileSync(faresFile
 function writeFares(fares) { fs.writeFileSync(faresFile, JSON.stringify(fares, null, 2)); }
 function readWalletLedger() { if (!fs.existsSync(walletFile)) fs.writeFileSync(walletFile, '[]'); return JSON.parse(fs.readFileSync(walletFile, 'utf8')); }
 function writeWalletLedger(entries) { fs.writeFileSync(walletFile, JSON.stringify(entries, null, 2)); }
+const defaultPlugins = ['motor_hire', 'tirhkah', 'video_call', 'taxi', 'food', 'ecommerce', 'grocery', 'parcel', 'bills', 'admob'].map((id) => ({ id: `plugin_${id}`, enabled: true, config: {}, updatedAt: new Date().toISOString() }));
+function readPlugins() { if (!fs.existsSync(pluginsFile)) fs.writeFileSync(pluginsFile, JSON.stringify(defaultPlugins, null, 2)); return JSON.parse(fs.readFileSync(pluginsFile, 'utf8')); }
+function writePlugins(plugins) { fs.writeFileSync(pluginsFile, JSON.stringify(plugins, null, 2)); }
+function readEvents() { if (!fs.existsSync(eventsFile)) fs.writeFileSync(eventsFile, '[]'); return JSON.parse(fs.readFileSync(eventsFile, 'utf8')); }
+function recordEvent(type, message, hint) { const events = readEvents(); events.unshift({ id: crypto.randomUUID(), type, message, hint, status: 'OPEN', createdAt: new Date().toISOString() }); writeEvents(events.slice(0, 100)); }
+function writeEvents(events) { fs.writeFileSync(eventsFile, JSON.stringify(events, null, 2)); }
 const sessions = new Map();
 const pinRequests = new Map();
 const adminPhone = process.env.ADMIN_PHONE || '9378160106';
 const counterPhone = process.env.COUNTER_PHONE || '1122334455';
 const adminPin = process.env.ADMIN_PIN;
+process.on('uncaughtException', (error) => { recordEvent('SYSTEM_ERROR', error.message, 'Check the latest server log and restart after fixing the reported module.'); console.error(error); });
+process.on('unhandledRejection', (reason) => { recordEvent('SYSTEM_ERROR', String(reason), 'Inspect the rejected async operation and verify its API or database dependency.'); console.error(reason); });
 function readJson(request) {
   return new Promise((resolve) => {
     let body = '';
@@ -89,6 +99,24 @@ const server = http.createServer((request, response) => {
   if (request.method === 'GET' && request.url === '/api/admin/moderators') {
     if (!requireRole(request, ['SUPER_ADMIN'])) return sendJson(response, 403, { error: 'Super Admin access required' });
     return sendJson(response, 200, { moderators: readModerators() });
+  }
+  if (request.method === 'GET' && request.url === '/api/admin/plugins') {
+    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Admin or Moderator access required' });
+    return sendJson(response, 200, { plugins: readPlugins() });
+  }
+  if (request.method === 'PATCH' && request.url.startsWith('/api/admin/plugins/')) {
+    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Admin or Moderator access required' });
+    return readJson(request).then((input) => {
+      const id = request.url.split('/').pop(); const plugins = readPlugins(); const index = plugins.findIndex((item) => item.id === id);
+      if (index < 0) return sendJson(response, 404, { error: 'Plugin not found' });
+      if (typeof input?.enabled === 'boolean') plugins[index].enabled = input.enabled;
+      if (input?.config && typeof input.config === 'object') plugins[index].config = { ...plugins[index].config, ...input.config };
+      plugins[index].updatedAt = new Date().toISOString(); writePlugins(plugins); return sendJson(response, 200, plugins[index]);
+    });
+  }
+  if (request.method === 'GET' && request.url === '/api/admin/system-events') {
+    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Admin or Moderator access required' });
+    return sendJson(response, 200, { events: readEvents().slice(0, 30) });
   }
   if (request.method === 'POST' && request.url === '/api/admin/moderators') {
     if (!requireRole(request, ['SUPER_ADMIN'])) return sendJson(response, 403, { error: 'Super Admin access required' });

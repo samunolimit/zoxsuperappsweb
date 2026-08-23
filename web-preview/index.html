@@ -88,6 +88,10 @@
     .remove { border: 0; background: transparent; color: #ff8b83; cursor: pointer; }
     .counter-tools { display: none; margin-top: 18px; padding: 16px; border: 1px solid #484568; border-radius: 16px; background: #242436; }
     .counter-tools.open { display: block; }
+    .admin-tools { display: none; }
+    .plugin-row, .event-row { padding: 10px 0; border-bottom: 1px solid #36344e; font-size: 12px; }
+    .plugin-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .plugin-row button { width: auto; margin: 0; padding: 8px 10px; }
     .counter-tools form { display: grid; gap: 8px; margin-bottom: 14px; }
     select { width: 100%; padding: 11px; border: 1px solid #383550; border-radius: 12px; background: #161524; color: white; }
     .book-button { display: block; width: 100%; margin-top: 14px; border: 0; border-radius: 12px; padding: 12px; background: var(--orange); color: #17131f; font-weight: 800; cursor: pointer; }
@@ -189,6 +193,10 @@
           <button class="book-button" type="submit">Add moderator</button>
         </form>
         <div id="moderator-list"></div>
+        <h2>Plugin Manager</h2>
+        <div id="plugin-list"></div>
+        <h2>System Notifications & Fix Hints</h2>
+        <div id="event-list"></div>
         </div>
         <h2>Operations Queue</h2>
         <form id="operation-form" class="non-counter-tools">
@@ -249,6 +257,8 @@
           document.querySelectorAll('.non-counter-tools').forEach((element) => { element.style.display = result.role === 'COUNTER_STAFF' ? 'none' : 'grid'; });
           if (result.role === 'COUNTER_STAFF') document.getElementById('counter-tools').classList.add('open');
           loadModerators();
+          loadPlugins();
+          loadSystemEvents();
           loadOperations();
         } catch (error) { authError.textContent = error.message; }
       });
@@ -259,6 +269,22 @@
         const result = await response.json();
         document.getElementById('moderator-list').innerHTML = result.moderators.map((item) => `<div class="moderator-row"><span>${item.name}<br>${item.phone}</span><button class="remove" data-id="${item.id}">Remove</button></div>`).join('');
       };
+      const staffFetch = (path, options = {}) => fetch(path, { ...options, headers: { ...(options.headers || {}), Authorization: `Bearer ${staffToken}` } });
+      const loadPlugins = async () => {
+        if (staffRole === 'COUNTER_STAFF') return;
+        const response = await staffFetch('/api/admin/plugins'); const result = await response.json();
+        document.getElementById('plugin-list').innerHTML = result.plugins.map((item) => `<div class="plugin-row"><span>${item.id}<br>${item.enabled ? 'Enabled' : 'Disabled'}</span><button class="book-button plugin-toggle" data-id="${item.id}" data-enabled="${item.enabled}">${item.enabled ? 'Disable' : 'Enable'}</button></div>`).join('');
+      };
+      const loadSystemEvents = async () => {
+        if (staffRole === 'COUNTER_STAFF') return;
+        const response = await staffFetch('/api/admin/system-events'); const result = await response.json();
+        document.getElementById('event-list').innerHTML = result.events.length ? result.events.map((item) => `<div class="event-row"><strong>${item.type}</strong><br>${item.message}<br><span class="tag">Fix: ${item.hint}</span></div>`).join('') : '<div class="api-status">No system errors reported.</div>';
+      };
+      document.getElementById('plugin-list').addEventListener('click', async (event) => {
+        if (!event.target.classList.contains('plugin-toggle')) return;
+        await staffFetch(`/api/admin/plugins/${event.target.dataset.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: event.target.dataset.enabled !== 'true' }) });
+        loadPlugins();
+      });
       const loadOperations = async () => {
         const response = await fetch('/api/admin/operations', { headers: { Authorization: `Bearer ${staffToken}` } });
         const result = await response.json();
