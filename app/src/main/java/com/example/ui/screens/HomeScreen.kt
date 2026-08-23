@@ -25,19 +25,24 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Emergency
+import androidx.compose.material.icons.filled.Handyman
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LocalTaxi
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MonetizationOn
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material.icons.filled.Videocam
@@ -558,6 +563,11 @@ fun PluginGridItem(
     "inventory_2" -> Icons.Default.Inventory2
     "receipt_long" -> Icons.Default.ReceiptLong
     "monetization_on" -> Icons.Default.MonetizationOn
+    "build" -> Icons.Default.Build
+    "handyman" -> Icons.Default.Handyman
+    "medical_services" -> Icons.Default.MedicalServices
+    "emergency" -> Icons.Default.Emergency
+    "support_agent" -> Icons.Default.SupportAgent
     else -> Icons.Default.DirectionsCar
   }
 

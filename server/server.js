@@ -38,8 +38,15 @@ function readFares() { if (!fs.existsSync(faresFile)) fs.writeFileSync(faresFile
 function writeFares(fares) { fs.writeFileSync(faresFile, JSON.stringify(fares, null, 2)); }
 function readWalletLedger() { if (!fs.existsSync(walletFile)) fs.writeFileSync(walletFile, '[]'); return JSON.parse(fs.readFileSync(walletFile, 'utf8')); }
 function writeWalletLedger(entries) { fs.writeFileSync(walletFile, JSON.stringify(entries, null, 2)); }
-const defaultPlugins = ['motor_hire', 'tirhkah', 'video_call', 'taxi', 'food', 'ecommerce', 'grocery', 'parcel', 'bills', 'admob'].map((id) => ({ id: `plugin_${id}`, enabled: true, config: {}, updatedAt: new Date().toISOString() }));
-function readPlugins() { if (!fs.existsSync(pluginsFile)) fs.writeFileSync(pluginsFile, JSON.stringify(defaultPlugins, null, 2)); return JSON.parse(fs.readFileSync(pluginsFile, 'utf8')); }
+const defaultPlugins = ['motor_hire', 'tirhkah', 'video_call', 'taxi', 'food', 'ecommerce', 'grocery', 'parcel', 'bills', 'admob', 'store', 'workshop', 'mechanic', 'medical', 'emergency', 'support_chat'].map((id) => ({ id: `plugin_${id}`, enabled: true, config: {}, updatedAt: new Date().toISOString() }));
+function readPlugins() {
+  if (!fs.existsSync(pluginsFile)) fs.writeFileSync(pluginsFile, JSON.stringify(defaultPlugins, null, 2));
+  const current = JSON.parse(fs.readFileSync(pluginsFile, 'utf8'));
+  const known = new Set(current.map((item) => item.id));
+  const merged = [...current, ...defaultPlugins.filter((item) => !known.has(item.id))];
+  if (merged.length !== current.length) writePlugins(merged);
+  return merged;
+}
 function writePlugins(plugins) { fs.writeFileSync(pluginsFile, JSON.stringify(plugins, null, 2)); }
 function readEvents() { if (!fs.existsSync(eventsFile)) fs.writeFileSync(eventsFile, '[]'); return JSON.parse(fs.readFileSync(eventsFile, 'utf8')); }
 function recordEvent(type, message, hint) { const events = readEvents(); events.unshift({ id: crypto.randomUUID(), type, message, hint, status: 'OPEN', createdAt: new Date().toISOString() }); writeEvents(events.slice(0, 100)); }
