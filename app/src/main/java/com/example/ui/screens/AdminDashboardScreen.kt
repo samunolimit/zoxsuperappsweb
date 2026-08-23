@@ -108,7 +108,6 @@ fun AdminDashboardScreen(
   onTogglePlugin: (pluginId: String, enable: Boolean) -> Unit,
   onInstallUninstallPlugin: (pluginId: String, install: Boolean) -> Unit,
   onConfigurePlugin: (pluginId: String) -> Unit,
-  onConfigurePlugin: (pluginId: String) -> Unit,
   onSaveVaultConfig: (MasterVaultConfig) -> Unit,
   onApproveKyc: (applicationId: String) -> Unit,
   onRejectKyc: (applicationId: String, reason: String) -> Unit,
@@ -489,7 +488,8 @@ fun MasterInfrastructureVaultTab(
                 tokenServerUrl = agoraTokenServer
               ),
               maps = config.maps.copy(
-                androidApiKey = googleMapsKey
+                androidApiKey = googleMapsKey,
+                isEnabled = googleMapsKey.isNotBlank()
               ),
               payments = config.payments.copy(
                 razorpayKeyId = razorpayKey,

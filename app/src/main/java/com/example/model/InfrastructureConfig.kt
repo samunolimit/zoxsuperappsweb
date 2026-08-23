@@ -43,10 +43,11 @@ data class AgoraRtcConfig(
 )
 
 data class GoogleMapsConfig(
-  val androidApiKey: String = "AIzaSyZOX_GoogleMaps_AndroidKey_Live_2026",
-  val iosApiKey: String = "AIzaSyZOX_GoogleMaps_iOSKey_Live_2026",
+  val androidApiKey: String = "",
+  val iosApiKey: String = "",
   val placesDailyQuota: Int = 100000,
-  val geocodingEnabled: Boolean = true
+  val geocodingEnabled: Boolean = true,
+  val isEnabled: Boolean = true
 )
 
 data class PaymentGatewayConfig(

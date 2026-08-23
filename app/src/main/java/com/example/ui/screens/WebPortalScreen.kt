@@ -73,6 +73,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
 import androidx.compose.ui.window.Dialog
 import com.example.model.BookingItem
 import com.example.model.FleetVehicle
@@ -257,7 +265,7 @@ fun WebPortalScreen(
       ) {
         when (activeWebTab) {
           0 -> WebQuickDispatchView(fleet = fleet, onDispatch = onQuickBook)
-          1 -> WebFleetRadarView(fleet = fleet)
+          1 -> WebFleetRadarView(fleet = fleet, mapsConfig = vaultConfig.maps)
           2 -> WebRestApiSandboxView(vaultConfig = vaultConfig)
           3 -> WebServerLogsView()
           4 -> WebJsonExportView(vaultConfig = vaultConfig, fleet = fleet, bookings = bookings)
@@ -469,7 +477,7 @@ private fun WebQuickDispatchView(
 // PANEL 2: LIVE FLEET RADAR MAP
 // -------------------------------------------------------------
 @Composable
-private fun WebFleetRadarView(fleet: List<FleetVehicle>) {
+private fun WebFleetRadarView(fleet: List<FleetVehicle>, mapsConfig: com.example.model.GoogleMapsConfig) {
   val mockDrivers = listOf(
     Pair("Lalhmangaiha (Activa MZ-01-N-1092)", "Chanmari Hub • Moving 24 km/h • Battery 94%"),
     Pair("Lalruatkima (Hunter 350 MZ-01-M-4829)", "Zarkawt Junction • Parked (Idle) • Fuel 85%"),
@@ -528,6 +536,35 @@ private fun WebFleetRadarView(fleet: List<FleetVehicle>) {
             fontSize = 11.sp,
             color = Color(0xFFA5A5BC)
           )
+
+          if (mapsConfig.isEnabled && mapsConfig.androidApiKey.isNotBlank()) {
+            val aizawl = LatLng(23.7271, 92.7176)
+            val cameraPositionState = rememberCameraPositionState {
+              position = CameraPosition.fromLatLngZoom(aizawl, 11f)
+            }
+            GoogleMap(
+              modifier = Modifier
+                .fillMaxWidth()
+                .height(260.dp),
+              cameraPositionState = cameraPositionState,
+              properties = MapProperties(isBuildingEnabled = true),
+              uiSettings = MapUiSettings(zoomControlsEnabled = true, mapToolbarEnabled = false)
+            ) {
+              mockDrivers.forEachIndexed { index, driver ->
+                Marker(
+                  state = MarkerState(LatLng(23.7271 + index * 0.012, 92.7176 + index * 0.009)),
+                  title = driver.first,
+                  snippet = driver.second
+                )
+              }
+            }
+          } else {
+            Text(
+              text = "Google Maps API key not configured. Add it under Admin > Master Vault > Google Maps SDK & Geocoding.",
+              fontSize = 11.sp,
+              color = ZoxWarning
+            )
+          }
         }
       }
     }
