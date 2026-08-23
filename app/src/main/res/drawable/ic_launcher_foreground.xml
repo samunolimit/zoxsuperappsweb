@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Speed line 1 -->
+    <path
+        android:fillColor="#80FF9800"
+        android:pathData="M24,34 L40,34 L32,38 L20,38 Z" />
+        
+    <!-- Speed line 2 -->
+    <path
+        android:fillColor="#80FFB74D"
+        android:pathData="M18,44 L36,44 L30,48 L14,48 Z" />
+
+    <!-- Sharp Modern Geometric Z Monogram -->
+    <!-- Top Bar -->
+    <path android:pathData="M28,30 L80,30 L74,44 L36,44 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="28"
+                android:startY="30"
+                android:endX="80"
+                android:endY="44"
+                android:type="linear">
+                <item android:color="#FFFF9800" android:offset="0.0" />
+                <item android:color="#FFFF5722" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Diagonal Slash with high-tech cut -->
+    <path android:pathData="M78,32 L40,76 L30,76 L68,32 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="30"
+                android:startY="76"
+                android:endX="78"
+                android:endY="32"
+                android:type="linear">
+                <item android:color="#FFFF5722" android:offset="0.0" />
+                <item android:color="#FF9C27B0" android:offset="0.6" />
+                <item android:color="#FF673AB7" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Bottom Bar -->
+    <path android:pathData="M34,64 L72,64 L80,78 L28,78 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="28"
+                android:startY="64"
+                android:endX="80"
+                android:endY="78"
+                android:type="linear">
+                <item android:color="#FF9C27B0" android:offset="0.0" />
+                <item android:color="#FF673AB7" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Glowing Speed Accent / Dot -->
+    <path
+        android:fillColor="#FFFFD54F"
+        android:pathData="M84,32 L90,32 L86,37 L80,37 Z" />
+</vector>

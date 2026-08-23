@@ -1,0 +1,11 @@
+{
+  "name": "zox-super-apps-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ZOX Super Apps web application and API server",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js"
+  },
+  "dependencies": {}
+}

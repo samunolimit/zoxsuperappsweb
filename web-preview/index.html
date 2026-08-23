@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ZOX | Mobility, made local</title>
+  <style>
+    :root {
+      --bg: #13131f;
+      --card: #242436;
+      --surface: #1e1e2c;
+      --purple: #673ab7;
+      --orange: #ff9800;
+      --muted: #a0a0ba;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(circle at top, #26193e, #13131f 55%);
+      color: #f5f5fa;
+      display: flex;
+      justify-content: center;
+      padding: 24px 12px 40px;
+    }
+    .phone {
+      width: min(420px, 100%);
+      background: var(--bg);
+      border: 1px solid #2e2c44;
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 24px 80px rgba(0,0,0,.45);
+    }
+    header {
+      padding: 18px 16px 12px;
+      background: linear-gradient(#26193e, #1b172c, var(--bg));
+    }
+    .brand { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .logo {
+      width: 38px; height: 38px; border-radius: 12px;
+      background: linear-gradient(135deg, #ff9800, #673ab7);
+      display: grid; place-items: center; font-weight: 900;
+    }
+    .title { font-weight: 900; letter-spacing: 1px; }
+    .tag { color: var(--orange); font-size: 11px; font-weight: 700; }
+    .pills { display: flex; gap: 8px; }
+    .pill {
+      font-size: 11px; font-weight: 700; padding: 6px 9px;
+      border-radius: 20px; border: 1px solid #484568; background: var(--surface);
+    }
+    input {
+      width: 100%; margin-top: 14px; border: 1px solid #383550; background: #161524;
+      color: white; border-radius: 14px; padding: 12px 14px;
+    }
+    .wallet {
+      margin-top: 14px; border-radius: 16px; padding: 14px;
+      background: linear-gradient(90deg, #2d1b4e, #422405);
+      display: flex; justify-content: space-between;
+    }
+    main { padding: 0 16px 90px; }
+    h2 { font-size: 16px; margin: 18px 0 10px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .tile { text-align: center; font-size: 11px; }
+    .icon {
+      width: 54px; height: 54px; margin: 0 auto 6px; border-radius: 16px;
+      display: grid; place-items: center; background: #252336; border: 1px solid #383652;
+    }
+    .fleet { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+    .card {
+      min-width: 200px; background: var(--card); border: 1px solid #36344e;
+      border-radius: 18px; padding: 12px;
+    }
+    .price { color: var(--orange); font-weight: 900; }
+    .api-status { color: var(--muted); font-size: 11px; margin: 12px 0 0; text-align: center; }
+    .book-button { display: block; width: 100%; margin-top: 14px; border: 0; border-radius: 12px; padding: 12px; background: var(--orange); color: #17131f; font-weight: 800; cursor: pointer; }
+    .book-button:hover { filter: brightness(1.08); }
+    .booking-form { display: none; gap: 8px; margin-top: 12px; }
+    .booking-form.open { display: grid; }
+    .booking-form input { margin: 0; padding: 10px; }
+    nav {
+      position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr);
+      background: #161524; border-top: 1px solid #2e2c44; padding: 10px 6px 16px;
+      font-size: 10px; text-align: center; color: #a0a0ba;
+    }
+    nav .on { color: var(--orange); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <header>
+      <div class="brand">
+        <div style="display:flex;gap:10px;align-items:center">
+          <div class="logo">Z</div>
+          <div>
+            <div class="title">ZOX SUPER APPS</div>
+            <div class="tag">Mizoram • Mobility • Logistics • RTC</div>
+          </div>
+        </div>
+        <div class="pills">
+          <div class="pill">Aizawl</div>
+        </div>
+      </div>
+      <input placeholder="Search rides, tirhkah errands, food, bills..." />
+      <div class="wallet">
+        <div>
+          <div style="font-size:11px;color:var(--muted)">Wallet</div>
+          <div style="font-size:20px;font-weight:900">₹1,450</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted)">Reward coins</div>
+          <div class="price">380</div>
+        </div>
+      </div>
+        <button class="book-button" id="book-button">Book a service</button>
+        <form class="booking-form" id="booking-form">
+          <input name="pickup" placeholder="Pickup location" required />
+          <input name="destination" placeholder="Destination" required />
+          <button class="book-button" type="submit">Confirm booking</button>
+        </form>
+        <div class="api-status" id="api-status">Connecting to ZOX API...</div>
+    </header>
+    <main>
+      <h2>Super App Services <span class="tag">10 Active Plugins</span></h2>
+      <div class="grid">
+        <div class="tile"><div class="icon">🏍</div>Motor Hire</div>
+        <div class="tile"><div class="icon">📦</div>Tirhkah</div>
+        <div class="tile"><div class="icon">📹</div>Video Call</div>
+        <div class="tile"><div class="icon">🚕</div>Taxi</div>
+        <div class="tile"><div class="icon">🍽</div>Food</div>
+        <div class="tile"><div class="icon">🛍</div>E-Commerce</div>
+        <div class="tile"><div class="icon">🏪</div>Grocery</div>
+        <div class="tile"><div class="icon">📄</div>Bills</div>
+      </div>
+      <h2>Motor Hire Fleet</h2>
+      <div class="fleet">
+        <div class="card"><strong>Royal Enfield Hunter 350</strong><div>Petrol • 2 Seats</div><div class="price">₹120/hr</div></div>
+        <div class="card"><strong>Honda Activa 6G</strong><div>Petrol • 2 Seats</div><div class="price">₹60/hr</div></div>
+        <div class="card"><strong>Mahindra Thar 4x4</strong><div>Diesel • 4 Seats</div><div class="price">₹350/hr</div></div>
+      </div>
+    </main>
+    <nav>
+      <div class="on">Home</div>
+      <div>Bookings</div>
+      <div>Wallet</div>
+      <div>Profile</div>
+      <div>Vault</div>
+    </nav>
+  </div>
+    <script>
+      const status = document.getElementById('api-status');
+      const loadSummary = async () => {
+        const response = await fetch('/api/summary');
+        if (!response.ok) throw new Error('API request failed');
+        return response.json();
+      };
+      const localBookings = () => JSON.parse(localStorage.getItem('zox-bookings') || '[]');
+      const saveLocalBooking = (booking) => {
+        const bookings = localBookings();
+        bookings.unshift({ ...booking, status: 'CONFIRMED' });
+        localStorage.setItem('zox-bookings', JSON.stringify(bookings));
+      };
+      const refreshSummary = async () => {
+        try {
+          const summary = await loadSummary();
+          status.textContent = `API connected · ${summary.metrics.activeBookings} active booking(s)`;
+          const wallet = document.querySelector('.wallet div[style*="font-size:20px"]');
+          if (wallet) wallet.textContent = `₹${summary.user.wallet.toLocaleString('en-IN')}`;
+        } catch (_error) {
+          status.textContent = `Offline demo · ${localBookings().length} local booking(s)`;
+        }
+      };
+      const createBooking = async (service, pickup, destination) => {
+        const booking = { service, pickup, destination, amount: 120 };
+        try {
+          const response = await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(booking) });
+          if (!response.ok) throw new Error('API request failed');
+          window.alert('Booking confirmed and saved to the server.');
+        } catch (_error) {
+          saveLocalBooking(booking);
+          window.alert('Booking confirmed in this browser. Connect the API later to sync it.');
+        }
+        refreshSummary();
+      };
+      const bookingForm = document.getElementById('booking-form');
+      document.getElementById('book-button').addEventListener('click', () => {
+        bookingForm.classList.toggle('open');
+      });
+      bookingForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const values = new FormData(bookingForm);
+        createBooking(bookingForm.dataset.service || 'Motor Hire', values.get('pickup'), values.get('destination'));
+        bookingForm.reset();
+        bookingForm.classList.remove('open');
+      });
+      document.querySelector('.grid').addEventListener('click', (event) => {
+        const tile = event.target.closest('.tile');
+        if (tile) {
+          bookingForm.classList.add('open');
+          bookingForm.dataset.service = tile.textContent.trim();
+        }
+      });
+      refreshSummary();
+    </script>
+</body>
+</html>

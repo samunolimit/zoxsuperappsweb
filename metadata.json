@@ -1,0 +1,6 @@
+{
+  "name": "ZOX Super Apps",
+  "description": "Enterprise modular super app with web cloud interface portal, full system maintenance management, dynamic plugins, master infrastructure vault, real-time AdMob monetization, and live RTC video calls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
