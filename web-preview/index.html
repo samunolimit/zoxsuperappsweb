@@ -293,7 +293,9 @@
       let requestId = '';
       const authRequest = async (path, body) => {
         const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        const result = await response.json();
+        const raw = await response.text();
+        let result;
+        try { result = JSON.parse(raw); } catch { throw new Error(`Server returned an invalid response (${response.status}). Open the app at /zoxsuperapps/ and check Apache rewrite.`); }
         if (!response.ok) throw new Error(result.error || 'Authentication failed');
         return result;
       };
