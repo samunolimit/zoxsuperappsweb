@@ -52,8 +52,9 @@ $input = json_decode((string) file_get_contents('php://input'), true);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/auth/request-pin' || str_ends_with($route, '/auth/request-pin'))) {
     $phone = (string) ($input['phone'] ?? '');
     $adminPhone = getenv('ADMIN_PHONE') ?: '9378160106';
+    $counterPhone = getenv('COUNTER_PHONE') ?: '1122334455';
     $moderators = stored($moderatorsFile);
-    if ($phone !== $adminPhone && !array_filter($moderators, fn ($item) => $item['phone'] === $phone)) reply(['error' => 'Account is not authorized for staff access'], 403);
+    if ($phone !== $adminPhone && $phone !== $counterPhone && !array_filter($moderators, fn ($item) => $item['phone'] === $phone)) reply(['error' => 'Account is not authorized for staff access'], 403);
     $requestId = bin2hex(random_bytes(16));
     $pin = getenv('ADMIN_PIN') ?: '123456';
     $requests = stored($authFile);
@@ -67,8 +68,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/auth/verify-pin' 
     foreach ($sessions as $session) if (($session['requestId'] ?? '') === ($input['requestId'] ?? '') && $session['expiresAt'] > time() && hash_equals((string) $session['pin'], (string) ($input['pin'] ?? ''))) $match = $session;
     if (!$match) reply(['error' => 'Invalid or expired authentication PIN'], 401);
     $adminPhone = getenv('ADMIN_PHONE') ?: '9378160106';
+    $counterPhone = getenv('COUNTER_PHONE') ?: '1122334455';
     $token = bin2hex(random_bytes(32));
-    $sessions[] = ['token' => $token, 'phone' => $match['phone'], 'role' => $match['phone'] === $adminPhone ? 'SUPER_ADMIN' : 'MODERATOR', 'expiresAt' => time() + 28800];
+    $sessions[] = ['token' => $token, 'phone' => $match['phone'], 'role' => $match['phone'] === $adminPhone ? 'SUPER_ADMIN' : ($match['phone'] === $counterPhone ? 'COUNTER_STAFF' : 'MODERATOR'), 'expiresAt' => time() + 28800];
     saveStored($authFile, $sessions);
     reply(['token' => $token, 'role' => $sessions[array_key_last($sessions)]['role']]);
 }
@@ -97,12 +99,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && preg_match('#/(?:api/)?admin/mode
 }
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/admin/operations' || str_ends_with($route, '/admin/operations'))) {
     $staff = staffUser($authFile);
-    if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR'], true)) reply(['error' => 'Staff access required'], 403);
+    if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'], true)) reply(['error' => 'Staff access required'], 403);
     reply(['bookings' => $current, 'operations' => stored($operationsFile)]);
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/admin/operations' || str_ends_with($route, '/admin/operations'))) {
     $staff = staffUser($authFile);
-    if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR'], true)) reply(['error' => 'Staff access required'], 403);
+    if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'], true)) reply(['error' => 'Staff access required'], 403);
     $allowed = ['REQUEST', 'COMPLAINT', 'EMERGENCY', 'FEEDBACK', 'ANNOUNCEMENT', 'CASH_REQUEST', 'USER'];
     $type = (string) ($input['type'] ?? '');
     $message = trim((string) ($input['message'] ?? ''));
@@ -113,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/admin/operations'
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && preg_match('#/(?:api/)?admin/operations/([^/]+)/approve$#', $route, $match)) {
     $staff = staffUser($authFile);
-    if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR'], true)) reply(['error' => 'Staff access required'], 403);
+    if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'], true)) reply(['error' => 'Staff access required'], 403);
     $operations = stored($operationsFile);
     foreach ($operations as $index => $operation) if ($operation['id'] === $match[1] && $operation['type'] === 'CASH_REQUEST') {
         $operations[$index]['status'] = 'APPROVED';

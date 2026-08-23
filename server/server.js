@@ -33,6 +33,7 @@ function writeOperations(operations) { fs.writeFileSync(operationsFile, JSON.str
 const sessions = new Map();
 const pinRequests = new Map();
 const adminPhone = process.env.ADMIN_PHONE || '9378160106';
+const counterPhone = process.env.COUNTER_PHONE || '1122334455';
 const adminPin = process.env.ADMIN_PIN;
 function readJson(request) {
   return new Promise((resolve) => {
@@ -61,7 +62,7 @@ function sendPage(response) {
 const server = http.createServer((request, response) => {
   if (request.method === 'POST' && request.url === '/api/auth/request-pin') {
     return readJson(request).then((input) => {
-      if (!input?.phone || String(input.phone) !== adminPhone && !readModerators().some((item) => item.phone === String(input.phone))) return sendJson(response, 403, { error: 'Account is not authorized for staff access' });
+      if (!input?.phone || ![adminPhone, counterPhone].includes(String(input.phone)) && !readModerators().some((item) => item.phone === String(input.phone))) return sendJson(response, 403, { error: 'Account is not authorized for staff access' });
       const requestId = crypto.randomUUID();
       const pin = process.env.NODE_ENV === 'production' ? null : (adminPin || '123456');
       pinRequests.set(requestId, { phone: String(input.phone), pin, expiresAt: Date.now() + 5 * 60 * 1000 });
@@ -73,7 +74,7 @@ const server = http.createServer((request, response) => {
       const pending = pinRequests.get(input?.requestId);
       if (!pending || pending.expiresAt < Date.now() || String(input.pin) !== String(pending.pin)) return sendJson(response, 401, { error: 'Invalid or expired authentication PIN' });
       pinRequests.delete(input.requestId);
-      const role = pending.phone === adminPhone ? 'SUPER_ADMIN' : 'MODERATOR';
+      const role = pending.phone === adminPhone ? 'SUPER_ADMIN' : pending.phone === counterPhone ? 'COUNTER_STAFF' : 'MODERATOR';
       const token = crypto.randomBytes(32).toString('hex');
       sessions.set(token, { phone: pending.phone, role, createdAt: Date.now() });
       return sendJson(response, 200, { token, role });
@@ -106,11 +107,11 @@ const server = http.createServer((request, response) => {
     return sendJson(response, 200, { ok: true });
   }
   if (request.method === 'GET' && request.url === '/api/admin/operations') {
-    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Staff access required' });
+    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'])) return sendJson(response, 403, { error: 'Staff access required' });
     return sendJson(response, 200, { bookings: readBookings(), operations: readOperations() });
   }
   if (request.method === 'POST' && request.url === '/api/admin/operations') {
-    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Staff access required' });
+    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'])) return sendJson(response, 403, { error: 'Staff access required' });
     return readJson(request).then((input) => {
       const allowedTypes = ['REQUEST', 'COMPLAINT', 'EMERGENCY', 'FEEDBACK', 'ANNOUNCEMENT', 'CASH_REQUEST', 'USER'];
       if (!allowedTypes.includes(input?.type) || !String(input?.message || '').trim()) return sendJson(response, 400, { error: 'Operation type and message are required' });
@@ -121,7 +122,7 @@ const server = http.createServer((request, response) => {
     });
   }
   if (request.method === 'POST' && request.url.startsWith('/api/admin/operations/') && request.url.endsWith('/approve')) {
-    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Staff access required' });
+    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'])) return sendJson(response, 403, { error: 'Staff access required' });
     const id = request.url.split('/').slice(-2)[0];
     const operations = readOperations();
     const index = operations.findIndex((item) => item.id === id && item.type === 'CASH_REQUEST');
