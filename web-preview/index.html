@@ -73,7 +73,7 @@
     }
     .price { color: var(--orange); font-weight: 900; }
     .api-status { color: var(--muted); font-size: 11px; margin: 12px 0 0; text-align: center; }
-    .auth-gate { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 18px; background: rgba(10, 10, 18, .94); }
+    .auth-gate { position: fixed; inset: 0; z-index: 5; display: none; place-items: center; padding: 18px; background: rgba(10, 10, 18, .94); }
     .auth-box { width: min(420px, 100%); padding: 26px; border: 1px solid #484568; border-radius: 20px; background: #242436; box-shadow: 0 20px 70px rgba(0,0,0,.5); }
     .auth-box h1 { margin: 0 0 6px; font-size: 22px; }
     .auth-box p { color: var(--muted); font-size: 12px; line-height: 1.5; }
@@ -141,6 +141,7 @@
         </div>
         <div class="pills">
           <div class="pill">Aizawl</div>
+          <button class="pill" id="staff-access" type="button">Staff Backend</button>
         </div>
       </div>
       <input placeholder="Search rides, tirhkah errands, food, bills..." />
@@ -279,6 +280,7 @@
         } catch (error) { authError.textContent = error.message; }
       });
       document.getElementById('continue-public').addEventListener('click', () => { authGate.style.display = 'none'; });
+      document.getElementById('staff-access').addEventListener('click', () => { authGate.style.display = 'grid'; });
       const loadModerators = async () => {
         if (staffRole !== 'SUPER_ADMIN') { document.getElementById('moderator-form').style.display = 'none'; return; }
         const response = await fetch('/api/admin/moderators', { headers: { Authorization: `Bearer ${staffToken}` } });
