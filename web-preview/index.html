@@ -288,6 +288,9 @@
       window.setTimeout(() => document.getElementById('splash').classList.add('hide'), 1200);
       const authGate = document.getElementById('auth-gate');
       const authError = document.getElementById('auth-error');
+      const apiPath = (path) => `${window.location.pathname.startsWith('/zoxsuperapps') ? '/zoxsuperapps' : ''}${path}`;
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = (input, ...args) => originalFetch(typeof input === 'string' && input.startsWith('/api/') ? apiPath(input) : input, ...args);
       let staffToken = '';
       let staffRole = '';
       let requestId = '';
