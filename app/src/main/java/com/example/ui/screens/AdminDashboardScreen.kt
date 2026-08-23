@@ -423,6 +423,12 @@ fun MasterInfrastructureVaultTab(
   var admobRewardedId by remember { mutableStateOf(config.admob.rewardedUnitId) }
   var admobNativeId by remember { mutableStateOf(config.admob.nativeUnitId) }
   var rewardedCoinRate by remember { mutableStateOf(config.admob.rewardedCoinRate.toString()) }
+  var rewardsEnabled by remember { mutableStateOf(config.admob.rewardsEnabled) }
+  var bookingPoints by remember { mutableStateOf(config.admob.bookingPoints.toString()) }
+  var dailyPointsCap by remember { mutableStateOf(config.admob.dailyPointsCap.toString()) }
+  var pointsExpiryDays by remember { mutableStateOf(config.admob.pointsExpiryDays.toString()) }
+  var redemptionMinimum by remember { mutableStateOf(config.admob.redemptionMinimumPoints.toString()) }
+  var pointsValue by remember { mutableStateOf(config.admob.pointsValueInRupees.toString()) }
 
   var apiBaseUrl by remember { mutableStateOf(config.api.baseUrl) }
   var apiWsUrl by remember { mutableStateOf(config.api.webSocketsUrl) }
@@ -483,12 +489,18 @@ fun MasterInfrastructureVaultTab(
           onClick = {
             val updated = config.copy(
               admob = config.admob.copy(
+                rewardsEnabled = rewardsEnabled,
                 appId = admobAppId,
                 bannerUnitId = admobBannerId,
                 interstitialUnitId = admobInterstitialId,
                 rewardedUnitId = admobRewardedId,
                 nativeUnitId = admobNativeId,
                 rewardedCoinRate = rewardedCoinRate.toIntOrNull() ?: 50
+                bookingPoints = bookingPoints.toIntOrNull() ?: 10,
+                dailyPointsCap = dailyPointsCap.toIntOrNull() ?: 500,
+                pointsExpiryDays = pointsExpiryDays.toIntOrNull() ?: 365,
+                redemptionMinimumPoints = redemptionMinimum.toIntOrNull() ?: 1000,
+                pointsValueInRupees = pointsValue.toDoubleOrNull() ?: 1.0
               ),
               api = config.api.copy(
                 baseUrl = apiBaseUrl,
@@ -551,12 +563,21 @@ fun MasterInfrastructureVaultTab(
         icon = Icons.Default.MonetizationOn
       ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("Reward system enabled", color = Color.White, fontSize = 12.sp)
+            Switch(checked = rewardsEnabled, onCheckedChange = { rewardsEnabled = it })
+          }
           VaultTextField(label = "AdMob App ID", value = admobAppId, onValueChange = { admobAppId = it })
           VaultTextField(label = "Banner Unit ID", value = admobBannerId, onValueChange = { admobBannerId = it })
           VaultTextField(label = "Interstitial Unit ID", value = admobInterstitialId, onValueChange = { admobInterstitialId = it })
           VaultTextField(label = "Rewarded Video Unit ID", value = admobRewardedId, onValueChange = { admobRewardedId = it })
           VaultTextField(label = "Native Feed Unit ID", value = admobNativeId, onValueChange = { admobNativeId = it })
           VaultTextField(label = "Rewarded Coin Rate (Coins/Ad)", value = rewardedCoinRate, onValueChange = { rewardedCoinRate = it })
+          VaultTextField(label = "Booking Points", value = bookingPoints, onValueChange = { bookingPoints = it })
+          VaultTextField(label = "Daily Points Cap", value = dailyPointsCap, onValueChange = { dailyPointsCap = it })
+          VaultTextField(label = "Points Expiry (Days)", value = pointsExpiryDays, onValueChange = { pointsExpiryDays = it })
+          VaultTextField(label = "Redemption Minimum Points", value = redemptionMinimum, onValueChange = { redemptionMinimum = it })
+          VaultTextField(label = "Point Value (INR)", value = pointsValue, onValueChange = { pointsValue = it })
         }
       }
     }

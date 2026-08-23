@@ -222,6 +222,18 @@
           <button class="book-button">Create custom ad</button>
         </form>
         <div id="ad-list"></div>
+        <h2>Reward System Rules</h2>
+        <form id="reward-form">
+          <label><input name="enabled" type="checkbox" checked /> Rewards enabled</label>
+          <input name="adPoints" type="number" min="0" placeholder="Points per rewarded ad" required />
+          <input name="bookingPoints" type="number" min="0" placeholder="Points per booking" required />
+          <input name="dailyCap" type="number" min="0" placeholder="Daily points cap" required />
+          <input name="expiryDays" type="number" min="0" placeholder="Points expiry days" required />
+          <input name="redemptionMinimum" type="number" min="0" placeholder="Minimum redemption points" required />
+          <input name="pointValueInRupees" type="number" min="0" step="0.01" placeholder="Value of one point in INR" required />
+          <button class="book-button">Save reward rules</button>
+        </form>
+        <div class="api-status" id="reward-result"></div>
         <h2>System Notifications & Fix Hints</h2>
         <div id="event-list"></div>
         <h2>Partner Registrations</h2>
@@ -288,6 +300,7 @@
           loadAds();
           if (result.role !== 'CUSTOMER') { loadModerators(); loadPlugins(); loadSystemEvents(); loadProviders(); loadOperations(); }
           if (result.role === 'SUPER_ADMIN') loadAdsAdmin();
+          if (result.role === 'SUPER_ADMIN') loadRewards();
         } catch (error) { authError.textContent = error.message; }
       });
       document.getElementById('staff-access').addEventListener('click', () => { authGate.style.display = 'grid'; });
@@ -318,6 +331,11 @@
         document.getElementById('custom-ad-section').style.display = result.ads.length ? 'block' : 'none';
         document.getElementById('custom-ad-list').innerHTML = result.ads.map((ad) => `<div class="event-row"><strong>${ad.title}</strong><br>${ad.body}${ad.targetUrl ? ` <a href="${ad.targetUrl}" target="_blank">Open</a>` : ''}</div>`).join('');
       };
+      const loadRewards = async () => {
+        const response = await fetch('/api/rewards'); const result = await response.json(); const reward = result.rewards;
+        const form = document.getElementById('reward-form'); form.elements.enabled.checked = reward.enabled;
+        ['adPoints', 'bookingPoints', 'dailyCap', 'expiryDays', 'redemptionMinimum', 'pointValueInRupees'].forEach((key) => { form.elements[key].value = reward[key]; });
+      };
       const loadAdsAdmin = async () => {
         const response = await staffFetch('/api/admin/ads'); const result = await response.json();
         document.getElementById('ad-list').innerHTML = result.ads.map((ad) => `<div class="plugin-row"><span>${ad.title}<br>${ad.enabled ? 'Enabled' : 'Disabled'} · ${ad.placement}</span><span><button class="book-button ad-toggle" data-id="${ad.id}" data-enabled="${ad.enabled}">${ad.enabled ? 'Disable' : 'Enable'}</button> <button class="remove ad-delete" data-id="${ad.id}">Delete</button></span></div>`).join('');
@@ -331,6 +349,11 @@
         if (event.target.classList.contains('ad-toggle')) await staffFetch(`/api/admin/ads/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: event.target.dataset.enabled !== 'true' }) });
         if (event.target.classList.contains('ad-delete')) await staffFetch(`/api/admin/ads/${id}`, { method: 'DELETE' });
         loadAdsAdmin(); loadAds();
+      });
+      document.getElementById('reward-form').addEventListener('submit', async (event) => {
+        event.preventDefault(); const form = new FormData(event.target); const payload = Object.fromEntries(form); payload.enabled = event.target.elements.enabled.checked;
+        const response = await staffFetch('/api/admin/rewards', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        document.getElementById('reward-result').textContent = response.ok ? 'Reward rules saved.' : 'Reward rules could not be saved.';
       });
       document.getElementById('provider-form').addEventListener('submit', async (event) => {
         event.preventDefault();

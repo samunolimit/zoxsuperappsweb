@@ -18,6 +18,7 @@ $authFile = $dataDir . '/auth.json';
 $operationsFile = $dataDir . '/operations.json';
 $providersFile = $dataDir . '/providers.json';
 $adsFile = $dataDir . '/custom-ads.json';
+$rewardsFile = $dataDir . '/rewards.json';
 $faresFile = $dataDir . '/fares.json';
 $walletFile = $dataDir . '/wallet-ledger.json';
 $initialBookings = [
@@ -55,7 +56,14 @@ if ($route === '/api/health' || str_ends_with($route, '/health')) reply(['ok' =>
 $input = json_decode((string) file_get_contents('php://input'), true);
 $current = bookings($dataFile, $dataDir, $initialBookings);
 $staff = staffUser($authFile);
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/ads' || str_ends_with($route, '/ads'))) reply(['ads' => array_values(array_filter(stored($adsFile), fn ($item) => !empty($item['enabled'])))]);
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && $route === '/api/rewards') reply(['rewards' => array_merge(['enabled' => true, 'adPoints' => 50, 'bookingPoints' => 10, 'dailyCap' => 500, 'expiryDays' => 365, 'redemptionMinimum' => 1000, 'pointValueInRupees' => 1], stored($rewardsFile, '{}'))]);
+if ($_SERVER['REQUEST_METHOD'] === 'PATCH' && ($route === '/api/admin/rewards' || str_ends_with($route, '/admin/rewards'))) {
+    if (($staff['role'] ?? '') !== 'SUPER_ADMIN') reply(['error' => 'Super Admin access required'], 403);
+    $currentRewards = array_merge(['enabled' => true, 'adPoints' => 50, 'bookingPoints' => 10, 'dailyCap' => 500, 'expiryDays' => 365, 'redemptionMinimum' => 1000, 'pointValueInRupees' => 1], stored($rewardsFile, '{}')); $updatedRewards = array_merge($currentRewards, $input ?: []);
+    foreach (['adPoints', 'bookingPoints', 'dailyCap', 'expiryDays', 'redemptionMinimum', 'pointValueInRupees'] as $key) if (!is_numeric($updatedRewards[$key]) || $updatedRewards[$key] < 0) reply(['error' => 'Reward values must be valid non-negative numbers'], 400);
+    $updatedRewards['enabled'] = !empty($updatedRewards['enabled']); $updatedRewards['updatedAt'] = date(DATE_ATOM); saveStored($rewardsFile, $updatedRewards); reply($updatedRewards);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && $route === '/api/ads') reply(['ads' => array_values(array_filter(stored($adsFile), fn ($item) => !empty($item['enabled'])))]);
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/admin/ads' || str_ends_with($route, '/admin/ads'))) {
     if (($staff['role'] ?? '') !== 'SUPER_ADMIN') reply(['error' => 'Super Admin access required'], 403);
     reply(['ads' => stored($adsFile)]);

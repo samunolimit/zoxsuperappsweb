@@ -15,6 +15,7 @@ const pluginsFile = path.join(dataDir, 'plugins.json');
 const eventsFile = path.join(dataDir, 'system-events.json');
 const providersFile = path.join(dataDir, 'providers.json');
 const adsFile = path.join(dataDir, 'custom-ads.json');
+const rewardsFile = path.join(dataDir, 'rewards.json');
 fs.mkdirSync(dataDir, { recursive: true });
 
 const initialBookings = [
@@ -57,6 +58,9 @@ function readProviders() { if (!fs.existsSync(providersFile)) fs.writeFileSync(p
 function writeProviders(providers) { fs.writeFileSync(providersFile, JSON.stringify(providers, null, 2)); }
 function readAds() { if (!fs.existsSync(adsFile)) fs.writeFileSync(adsFile, '[]'); return JSON.parse(fs.readFileSync(adsFile, 'utf8')); }
 function writeAds(ads) { fs.writeFileSync(adsFile, JSON.stringify(ads, null, 2)); }
+const defaultRewards = { enabled: true, adPoints: 50, bookingPoints: 10, dailyCap: 500, expiryDays: 365, redemptionMinimum: 1000, pointValueInRupees: 1 };
+function readRewards() { if (!fs.existsSync(rewardsFile)) fs.writeFileSync(rewardsFile, JSON.stringify(defaultRewards, null, 2)); return JSON.parse(fs.readFileSync(rewardsFile, 'utf8')); }
+function writeRewards(rewards) { fs.writeFileSync(rewardsFile, JSON.stringify(rewards, null, 2)); }
 const sessions = new Map();
 const pinRequests = new Map();
 const adminPhone = process.env.ADMIN_PHONE || '9378160106';
@@ -89,6 +93,16 @@ function sendPage(response) {
 }
 
 const server = http.createServer((request, response) => {
+  if (request.method === 'GET' && request.url === '/api/rewards') return sendJson(response, 200, { rewards: readRewards() });
+  if (request.method === 'PATCH' && request.url === '/api/admin/rewards') {
+    if (!requireRole(request, ['SUPER_ADMIN'])) return sendJson(response, 403, { error: 'Super Admin access required' });
+    return readJson(request).then((input) => {
+      const current = readRewards(); const numeric = ['adPoints', 'bookingPoints', 'dailyCap', 'expiryDays', 'redemptionMinimum', 'pointValueInRupees'];
+      const updated = { ...current, ...input };
+      if (numeric.some((key) => updated[key] === undefined || !Number.isFinite(Number(updated[key])) || Number(updated[key]) < 0)) return sendJson(response, 400, { error: 'Reward values must be valid non-negative numbers' });
+      updated.enabled = Boolean(updated.enabled); updated.updatedAt = new Date().toISOString(); writeRewards(updated); return sendJson(response, 200, updated);
+    });
+  }
   if (request.method === 'GET' && request.url === '/api/ads') return sendJson(response, 200, { ads: readAds().filter((ad) => ad.enabled) });
   if (request.method === 'GET' && request.url === '/api/admin/ads') {
     if (!requireRole(request, ['SUPER_ADMIN'])) return sendJson(response, 403, { error: 'Super Admin access required' });

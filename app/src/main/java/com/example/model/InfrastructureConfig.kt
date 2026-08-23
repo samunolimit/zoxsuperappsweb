@@ -2,13 +2,19 @@ package com.example.model
 
 data class AdMobConfig(
   val isEnabled: Boolean = true,
+  val rewardsEnabled: Boolean = true,
   val appId: String = "ca-app-pub-3940256099942544~3347511713",
   val bannerUnitId: String = "ca-app-pub-3940256099942544/6300978111",
   val interstitialUnitId: String = "ca-app-pub-3940256099942544/1033173712",
   val rewardedUnitId: String = "ca-app-pub-3940256099942544/5224354917",
   val nativeUnitId: String = "ca-app-pub-3940256099942544/2247696110",
   val rewardedCoinRate: Int = 50,
-  val interstitialFrequencyMinutes: Int = 3
+  val interstitialFrequencyMinutes: Int = 3,
+  val bookingPoints: Int = 10,
+  val dailyPointsCap: Int = 500,
+  val pointsExpiryDays: Int = 365,
+  val redemptionMinimumPoints: Int = 1000,
+  val pointsValueInRupees: Double = 1.0
 )
 
 data class ApiEndpointConfig(

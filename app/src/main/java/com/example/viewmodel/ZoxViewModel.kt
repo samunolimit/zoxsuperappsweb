@@ -149,6 +149,10 @@ class ZoxViewModel(
   }
 
   fun onRewardedAdCompleted(coins: Int) {
+    if (!vaultConfig.value.admob.rewardsEnabled) {
+      _uiState.value = _uiState.value.copy(showRewardedAdModal = false, alertMessage = "Rewards are currently disabled by Admin.")
+      return
+    }
     repository.rewardUserCoins(coins)
     _uiState.value = _uiState.value.copy(
       showRewardedAdModal = false,
