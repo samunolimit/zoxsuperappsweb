@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.model.FleetVehicle
+import com.example.model.AppPlugin
 import com.example.ui.theme.ZoxDarkCard
 import com.example.ui.theme.ZoxDarkSurface
 import com.example.ui.theme.ZoxOrangeAccent
@@ -749,7 +750,7 @@ fun KycUploadModal(
           // Role Selection (Mock Dropdown logic using buttons for simplicity)
           Text("Select Requested Role:", color = Color.White, fontSize = 12.sp)
           Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            val roles = listOf(com.example.model.UserRole.DRIVER, com.example.model.UserRole.TIRHKAH_RUNNER, com.example.model.UserRole.VEHICLE_OWNER)
+            val roles = listOf(com.example.model.UserRole.DRIVER, com.example.model.UserRole.TIRHKAH_RUNNER, com.example.model.UserRole.VEHICLE_OWNER, com.example.model.UserRole.COUNTER_STAFF)
             roles.forEach { role ->
               Button(
                 onClick = { requestedRole = role },
@@ -972,6 +973,44 @@ fun RouteVehicleEnrollmentModal(
           ) {
             Text(text = "ENROLL VEHICLE TO LIVE DESK", fontSize = 12.sp, fontWeight = FontWeight.Bold)
           }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+fun PluginServiceBookingModal(
+  plugin: AppPlugin?,
+  onConfirm: (pickup: String, destination: String, fare: Double) -> Unit,
+  onDismiss: () -> Unit
+) {
+  var pickup by remember { mutableStateOf("") }
+  var destination by remember { mutableStateOf("") }
+  var fare by remember { mutableStateOf("") }
+
+  Dialog(onDismissRequest = onDismiss) {
+    Card(
+      modifier = Modifier.fillMaxWidth(),
+      shape = RoundedCornerShape(22.dp),
+      colors = CardDefaults.cardColors(containerColor = ZoxDarkCard)
+    ) {
+      Column(
+        modifier = Modifier.padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+      ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text(text = plugin?.title ?: "ZOX Service", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(text = plugin?.subtitle ?: "Create a service request", color = Color(0xFFA0A0BA), fontSize = 11.sp)
+          }
+          IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White) }
+        }
+        OutlinedTextField(value = pickup, onValueChange = { pickup = it }, label = { Text("Pickup / service location") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(value = destination, onValueChange = { destination = it }, label = { Text("Destination / delivery details") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(value = fare, onValueChange = { fare = it.filter { char -> char.isDigit() || char == '.' } }, label = { Text("Estimated fare") }, modifier = Modifier.fillMaxWidth(), singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+        Button(onClick = { onConfirm(pickup, destination, fare.toDoubleOrNull() ?: 0.0) }, modifier = Modifier.fillMaxWidth(), enabled = pickup.isNotBlank() && destination.isNotBlank() && (fare.toDoubleOrNull() ?: 0.0) > 0, colors = ButtonDefaults.buttonColors(containerColor = ZoxOrangeAccent, contentColor = Color.Black), shape = RoundedCornerShape(12.dp)) {
+          Text("SUBMIT REQUEST", fontWeight = FontWeight.Bold)
         }
       }
     }

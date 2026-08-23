@@ -32,6 +32,8 @@ data class ZoxUiState(
   val showCityPickerModal: Boolean = false,
   val showMotorHireBookingModal: Boolean = false,
   val showTirhkahBookingModal: Boolean = false,
+  val showPluginBookingModal: Boolean = false,
+  val selectedPluginId: String? = null,
   val showAddMoneyModal: Boolean = false,
   val showKycUploadModal: Boolean = false,
   val showWebPortalModal: Boolean = false,
@@ -256,6 +258,32 @@ class ZoxViewModel(
     _uiState.value = _uiState.value.copy(showTirhkahBookingModal = show)
   }
 
+  fun openPluginBooking(pluginId: String) {
+    _uiState.value = _uiState.value.copy(showPluginBookingModal = true, selectedPluginId = pluginId)
+  }
+
+  fun closePluginBooking() {
+    _uiState.value = _uiState.value.copy(showPluginBookingModal = false, selectedPluginId = null)
+  }
+
+  fun bookPluginService(pluginId: String, pickup: String, destination: String, fare: Double) {
+    val plugin = plugins.value.firstOrNull { it.id == pluginId }
+    repository.createBooking(
+      type = when (pluginId) {
+        "plugin_taxi" -> BookingType.TAXI_RIDE
+        "plugin_food" -> BookingType.FOOD_DELIVERY
+        else -> BookingType.TIRHKAH_ERRAND
+      },
+      title = "${plugin?.title ?: "ZOX Service"} booking",
+      subtitle = plugin?.subtitle ?: "ZOX service request",
+      pickup = pickup,
+      dropoff = destination,
+      fare = fare
+    )
+    closePluginBooking()
+    _uiState.value = _uiState.value.copy(alertMessage = "${plugin?.title ?: "ZOX service"} request submitted successfully.")
+  }
+
   fun toggleAddMoneyModal(show: Boolean) {
     _uiState.value = _uiState.value.copy(showAddMoneyModal = show)
   }
@@ -272,7 +300,7 @@ class ZoxViewModel(
     repository.enrollRouteVehicle(vehicle)
     _uiState.value = _uiState.value.copy(
       showRouteVehicleModal = false,
-      alertMessage = "Route Vehicle enrolled successfully! Operations team notified."
+      alertMessage = "Route Vehicle enrolled successfully! Counter Desk notified."
     )
     runExpiryAudit()
   }

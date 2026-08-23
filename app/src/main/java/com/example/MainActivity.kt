@@ -283,7 +283,7 @@ fun ZoxSuperApp(
             onVideoCallClick = { viewModel.startVideoCall() },
             onWatchAdClick = { viewModel.triggerRewardedAd() },
             onPluginClick = { pluginId ->
-              viewModel.setTab(AppTab.BOOKINGS)
+              viewModel.openPluginBooking(pluginId)
             },
             onWebPortalClick = { viewModel.toggleWebPortal(true) }
           )
@@ -373,6 +373,16 @@ fun ZoxSuperApp(
         viewModel.bookTirhkah(item, pickup, dropoff, fare)
       },
       onDismiss = { viewModel.toggleTirhkahModal(false) }
+    )
+  }
+
+  if (uiState.showPluginBookingModal && uiState.selectedPluginId != null) {
+    PluginServiceBookingModal(
+      plugin = plugins.firstOrNull { it.id == uiState.selectedPluginId },
+      onConfirm = { pickup, destination, fare ->
+        viewModel.bookPluginService(uiState.selectedPluginId!!, pickup, destination, fare)
+      },
+      onDismiss = { viewModel.closePluginBooking() }
     )
   }
 
