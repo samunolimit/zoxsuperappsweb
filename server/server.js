@@ -16,6 +16,7 @@ const eventsFile = path.join(dataDir, 'system-events.json');
 const providersFile = path.join(dataDir, 'providers.json');
 const adsFile = path.join(dataDir, 'custom-ads.json');
 const rewardsFile = path.join(dataDir, 'rewards.json');
+const passwordsFile = path.join(dataDir, 'passwords.json');
 fs.mkdirSync(dataDir, { recursive: true });
 
 const initialBookings = [
@@ -61,11 +62,15 @@ function writeAds(ads) { fs.writeFileSync(adsFile, JSON.stringify(ads, null, 2))
 const defaultRewards = { enabled: true, adPoints: 50, bookingPoints: 10, dailyCap: 500, expiryDays: 365, redemptionMinimum: 1000, pointValueInRupees: 1 };
 function readRewards() { if (!fs.existsSync(rewardsFile)) fs.writeFileSync(rewardsFile, JSON.stringify(defaultRewards, null, 2)); return JSON.parse(fs.readFileSync(rewardsFile, 'utf8')); }
 function writeRewards(rewards) { fs.writeFileSync(rewardsFile, JSON.stringify(rewards, null, 2)); }
+function readPasswords() { if (!fs.existsSync(passwordsFile)) fs.writeFileSync(passwordsFile, '{}'); return JSON.parse(fs.readFileSync(passwordsFile, 'utf8')); }
+function writePasswords(passwords) { fs.writeFileSync(passwordsFile, JSON.stringify(passwords, null, 2)); }
+function passwordHash(password) { return crypto.createHash('sha256').update(String(password)).digest('hex'); }
 const sessions = new Map();
 const pinRequests = new Map();
 const adminPhone = process.env.ADMIN_PHONE || '9378160106';
 const counterPhone = process.env.COUNTER_PHONE || '1122334455';
 const adminPin = process.env.ADMIN_PIN;
+const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD || 'Srenthlei16#';
 process.on('uncaughtException', (error) => { recordEvent('SYSTEM_ERROR', error.message, 'Check the latest server log and restart after fixing the reported module.'); console.error(error); });
 process.on('unhandledRejection', (reason) => { recordEvent('SYSTEM_ERROR', String(reason), 'Inspect the rejected async operation and verify its API or database dependency.'); console.error(reason); });
 function readJson(request) {
@@ -93,6 +98,27 @@ function sendPage(response) {
 }
 
 const server = http.createServer((request, response) => {
+  if (request.method === 'POST' && request.url === '/api/auth/login-password') {
+    return readJson(request).then((input) => {
+      const phone = String(input?.phone || '').replace(/\D/g, ''); const password = String(input?.password || '');
+      if (!/^\d{10}$/.test(phone) || !password) return sendJson(response, 400, { error: 'Phone number and password are required' });
+      const passwords = readPasswords(); const valid = phone === adminPhone ? password === adminPassword : passwords[phone] === passwordHash(password);
+      if (!valid) return sendJson(response, 401, { error: 'Invalid password. Use OTP login if you do not have a password.' });
+      const role = phone === adminPhone ? 'SUPER_ADMIN' : phone === counterPhone ? 'COUNTER_STAFF' : readModerators().some((item) => item.phone === phone) ? 'MODERATOR' : 'CUSTOMER';
+      const token = crypto.randomBytes(32).toString('hex'); sessions.set(token, { phone, role, createdAt: Date.now() });
+      return sendJson(response, 200, { token, role, needsPasswordSetup: false });
+    });
+  }
+  if (request.method === 'POST' && request.url === '/api/auth/set-password') {
+    const user = authUser(request);
+    if (!user) return sendJson(response, 401, { error: 'Login required' });
+    return readJson(request).then((input) => {
+      const password = String(input?.password || '');
+      if (password.length < 8) return sendJson(response, 400, { error: 'Password must be at least 8 characters' });
+      const passwords = readPasswords(); passwords[user.phone] = passwordHash(password); writePasswords(passwords);
+      return sendJson(response, 200, { ok: true, message: 'Password saved' });
+    });
+  }
   if (request.method === 'GET' && request.url === '/api/rewards') return sendJson(response, 200, { rewards: readRewards() });
   if (request.method === 'PATCH' && request.url === '/api/admin/rewards') {
     if (!requireRole(request, ['SUPER_ADMIN'])) return sendJson(response, 403, { error: 'Super Admin access required' });

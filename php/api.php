@@ -19,6 +19,7 @@ $operationsFile = $dataDir . '/operations.json';
 $providersFile = $dataDir . '/providers.json';
 $adsFile = $dataDir . '/custom-ads.json';
 $rewardsFile = $dataDir . '/rewards.json';
+$passwordsFile = $dataDir . '/passwords.json';
 $faresFile = $dataDir . '/fares.json';
 $walletFile = $dataDir . '/wallet-ledger.json';
 $initialBookings = [
@@ -43,6 +44,7 @@ function stored(string $file, string $default = '[]'): array {
     return is_array($value) ? $value : [];
 }
 function saveStored(string $file, array $value): void { file_put_contents($file, json_encode($value, JSON_PRETTY_PRINT), LOCK_EX); }
+function passwordHash(string $password): string { return hash('sha256', $password); }
 function staffUser(string $authFile): ?array {
     $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
     $token = preg_replace('/^Bearer\s+/i', '', $header);
@@ -56,6 +58,19 @@ if ($route === '/api/health' || str_ends_with($route, '/health')) reply(['ok' =>
 $input = json_decode((string) file_get_contents('php://input'), true);
 $current = bookings($dataFile, $dataDir, $initialBookings);
 $staff = staffUser($authFile);
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/auth/login-password' || str_ends_with($route, '/auth/login-password'))) {
+    $phone = preg_replace('/\D/', '', (string) ($input['phone'] ?? '')); $password = (string) ($input['password'] ?? ''); $adminPhone = getenv('ADMIN_PHONE') ?: '9378160106'; $adminPassword = getenv('ADMIN_DEFAULT_PASSWORD') ?: 'Srenthlei16#'; $passwords = stored($passwordsFile, '{}');
+    if (!preg_match('/^\d{10}$/', $phone) || $password === '') reply(['error' => 'Phone number and password are required'], 400);
+    $valid = $phone === $adminPhone ? hash_equals($adminPassword, $password) : (($passwords[$phone] ?? '') === passwordHash($password));
+    if (!$valid) reply(['error' => 'Invalid password. Use OTP login if you do not have a password.'], 401);
+    $counterPhone = getenv('COUNTER_PHONE') ?: '1122334455'; $role = $phone === $adminPhone ? 'SUPER_ADMIN' : ($phone === $counterPhone ? 'COUNTER_STAFF' : ((bool) array_filter(stored($moderatorsFile), fn ($item) => $item['phone'] === $phone) ? 'MODERATOR' : 'CUSTOMER'));
+    $token = bin2hex(random_bytes(32)); $sessions = stored($authFile); $sessions[] = ['token' => $token, 'phone' => $phone, 'role' => $role, 'expiresAt' => time() + 28800]; saveStored($authFile, $sessions); reply(['token' => $token, 'role' => $role, 'needsPasswordSetup' => false]);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/auth/set-password' || str_ends_with($route, '/auth/set-password'))) {
+    if (!$staff) reply(['error' => 'Login required'], 401);
+    $password = (string) ($input['password'] ?? ''); if (strlen($password) < 8) reply(['error' => 'Password must be at least 8 characters'], 400);
+    $passwords = stored($passwordsFile, '{}'); $passwords[$staff['phone']] = passwordHash($password); saveStored($passwordsFile, $passwords); reply(['ok' => true, 'message' => 'Password saved']);
+}
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $route === '/api/rewards') reply(['rewards' => array_merge(['enabled' => true, 'adPoints' => 50, 'bookingPoints' => 10, 'dailyCap' => 500, 'expiryDays' => 365, 'redemptionMinimum' => 1000, 'pointValueInRupees' => 1], stored($rewardsFile, '{}'))]);
 if ($_SERVER['REQUEST_METHOD'] === 'PATCH' && ($route === '/api/admin/rewards' || str_ends_with($route, '/admin/rewards'))) {
     if (($staff['role'] ?? '') !== 'SUPER_ADMIN') reply(['error' => 'Super Admin access required'], 403);

@@ -136,9 +136,13 @@
       <h1>Sign in to ZOX</h1>
       <p>Enter your registered mobile number. A one-time authentication PIN is required before using the web app.</p>
       <input id="staff-phone" inputmode="numeric" maxlength="10" placeholder="10-digit mobile number" />
+      <input id="login-password" type="password" placeholder="Password (optional)" />
+      <button class="book-button" id="password-login">Login with password</button>
       <button class="book-button" id="request-pin">Request login PIN</button>
       <input id="staff-pin" inputmode="numeric" maxlength="6" placeholder="PIN received" style="display:none" />
       <button class="book-button" id="verify-pin" style="display:none">Open backend</button>
+      <input id="new-password" type="password" minlength="8" placeholder="Create password (8+ characters)" style="display:none" />
+      <button class="book-button" id="save-password" style="display:none">Save profile password</button>
       <div class="auth-error" id="auth-error"></div>
     </div>
   </div>
@@ -293,6 +297,22 @@
         if (!response.ok) throw new Error(result.error || 'Authentication failed');
         return result;
       };
+      const finishLogin = (result) => {
+        staffToken = result.token; staffRole = result.role;
+        authGate.style.display = 'none';
+        if (['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'].includes(result.role)) document.getElementById('staff-panel').classList.add('open');
+        document.getElementById('staff-role').textContent = result.role;
+        document.getElementById('admin-tools').style.display = result.role === 'SUPER_ADMIN' ? 'block' : 'none';
+        document.querySelectorAll('.non-counter-tools').forEach((element) => { element.style.display = result.role === 'COUNTER_STAFF' ? 'none' : 'grid'; });
+        if (result.role === 'COUNTER_STAFF') document.getElementById('counter-tools').classList.add('open');
+        loadAds();
+        if (result.role !== 'CUSTOMER') { loadModerators(); loadPlugins(); loadSystemEvents(); loadProviders(); loadOperations(); }
+        if (result.role === 'SUPER_ADMIN') { loadAdsAdmin(); loadRewards(); }
+      };
+      document.getElementById('password-login').addEventListener('click', async () => {
+        try { finishLogin(await authRequest('/api/auth/login-password', { phone: document.getElementById('staff-phone').value, password: document.getElementById('login-password').value })); }
+        catch (error) { authError.textContent = error.message; }
+      });
       document.getElementById('request-pin').addEventListener('click', async () => {
         try {
           const result = await authRequest('/api/auth/request-pin', { phone: document.getElementById('staff-phone').value });
@@ -302,20 +322,20 @@
           authError.textContent = result.demoPin ? `Development PIN: ${result.demoPin}` : result.message;
         } catch (error) { authError.textContent = error.message; }
       });
+      document.getElementById('save-password').addEventListener('click', async () => {
+        try {
+          const password = document.getElementById('new-password').value;
+          const response = await staffFetch('/api/auth/set-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
+          const result = await response.json(); if (!response.ok) throw new Error(result.error);
+          authError.textContent = 'Profile password saved. Use it next time.'; document.getElementById('new-password').style.display = 'none'; document.getElementById('save-password').style.display = 'none';
+        } catch (error) { authError.textContent = error.message; }
+      });
       document.getElementById('verify-pin').addEventListener('click', async () => {
         try {
           const result = await authRequest('/api/auth/verify-pin', { requestId, pin: document.getElementById('staff-pin').value });
-          staffToken = result.token; staffRole = result.role;
-          authGate.style.display = 'none';
-          if (['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'].includes(result.role)) document.getElementById('staff-panel').classList.add('open');
-          document.getElementById('staff-role').textContent = result.role;
-          document.getElementById('admin-tools').style.display = result.role === 'SUPER_ADMIN' ? 'block' : 'none';
-          document.querySelectorAll('.non-counter-tools').forEach((element) => { element.style.display = result.role === 'COUNTER_STAFF' ? 'none' : 'grid'; });
-          if (result.role === 'COUNTER_STAFF') document.getElementById('counter-tools').classList.add('open');
-          loadAds();
-          if (result.role !== 'CUSTOMER') { loadModerators(); loadPlugins(); loadSystemEvents(); loadProviders(); loadOperations(); }
-          if (result.role === 'SUPER_ADMIN') loadAdsAdmin();
-          if (result.role === 'SUPER_ADMIN') loadRewards();
+          finishLogin(result);
+          document.getElementById('new-password').style.display = 'block';
+          document.getElementById('save-password').style.display = 'block';
         } catch (error) { authError.textContent = error.message; }
       });
       document.getElementById('staff-access').addEventListener('click', () => { authGate.style.display = 'grid'; });
