@@ -14,6 +14,7 @@ const walletFile = path.join(dataDir, 'wallet-ledger.json');
 const pluginsFile = path.join(dataDir, 'plugins.json');
 const eventsFile = path.join(dataDir, 'system-events.json');
 const providersFile = path.join(dataDir, 'providers.json');
+const adsFile = path.join(dataDir, 'custom-ads.json');
 fs.mkdirSync(dataDir, { recursive: true });
 
 const initialBookings = [
@@ -54,6 +55,8 @@ function recordEvent(type, message, hint) { const events = readEvents(); events.
 function writeEvents(events) { fs.writeFileSync(eventsFile, JSON.stringify(events, null, 2)); }
 function readProviders() { if (!fs.existsSync(providersFile)) fs.writeFileSync(providersFile, '[]'); return JSON.parse(fs.readFileSync(providersFile, 'utf8')); }
 function writeProviders(providers) { fs.writeFileSync(providersFile, JSON.stringify(providers, null, 2)); }
+function readAds() { if (!fs.existsSync(adsFile)) fs.writeFileSync(adsFile, '[]'); return JSON.parse(fs.readFileSync(adsFile, 'utf8')); }
+function writeAds(ads) { fs.writeFileSync(adsFile, JSON.stringify(ads, null, 2)); }
 const sessions = new Map();
 const pinRequests = new Map();
 const adminPhone = process.env.ADMIN_PHONE || '9378160106';
@@ -86,6 +89,34 @@ function sendPage(response) {
 }
 
 const server = http.createServer((request, response) => {
+  if (request.method === 'GET' && request.url === '/api/ads') return sendJson(response, 200, { ads: readAds().filter((ad) => ad.enabled) });
+  if (request.method === 'GET' && request.url === '/api/admin/ads') {
+    if (!requireRole(request, ['SUPER_ADMIN'])) return sendJson(response, 403, { error: 'Super Admin access required' });
+    return sendJson(response, 200, { ads: readAds() });
+  }
+  if (request.method === 'POST' && request.url === '/api/admin/ads') {
+    if (!requireRole(request, ['SUPER_ADMIN'])) return sendJson(response, 403, { error: 'Super Admin access required' });
+    return readJson(request).then((input) => {
+      const title = String(input?.title || '').trim(); const body = String(input?.body || '').trim();
+      if (!title || !body) return sendJson(response, 400, { error: 'Ad title and message are required' });
+      const ad = { id: crypto.randomUUID(), title, body, imageUrl: String(input.imageUrl || ''), targetUrl: String(input.targetUrl || ''), placement: String(input.placement || 'HOME'), enabled: input.enabled !== false, startsAt: input.startsAt || null, endsAt: input.endsAt || null, createdAt: new Date().toISOString() };
+      const ads = readAds(); ads.unshift(ad); writeAds(ads); return sendJson(response, 201, ad);
+    });
+  }
+  if (request.method === 'PATCH' && request.url.startsWith('/api/admin/ads/')) {
+    if (!requireRole(request, ['SUPER_ADMIN'])) return sendJson(response, 403, { error: 'Super Admin access required' });
+    return readJson(request).then((input) => {
+      const id = request.url.split('/').pop(); const ads = readAds(); const index = ads.findIndex((ad) => ad.id === id);
+      if (index < 0) return sendJson(response, 404, { error: 'Ad not found' });
+      ads[index] = { ...ads[index], ...input, updatedAt: new Date().toISOString() }; writeAds(ads); return sendJson(response, 200, ads[index]);
+    });
+  }
+  if (request.method === 'DELETE' && request.url.startsWith('/api/admin/ads/')) {
+    if (!requireRole(request, ['SUPER_ADMIN'])) return sendJson(response, 403, { error: 'Super Admin access required' });
+    const id = request.url.split('/').pop(); const ads = readAds(); const next = ads.filter((ad) => ad.id !== id);
+    if (next.length === ads.length) return sendJson(response, 404, { error: 'Ad not found' });
+    writeAds(next); return sendJson(response, 200, { ok: true });
+  }
   if (request.method === 'POST' && request.url === '/api/providers/register') {
     return readJson(request).then((input) => {
       const allowed = ['workshop', 'mechanic', 'medical', 'emergency', 'support', 'store'];

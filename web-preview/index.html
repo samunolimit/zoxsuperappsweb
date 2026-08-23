@@ -197,6 +197,10 @@
         <h2>ZOX Fleet Radar <span class="tag">AIZAWL LIVE VIEW</span></h2>
         <iframe title="Google Maps view of Aizawl" loading="lazy" src="https://www.google.com/maps?q=Aizawl%2C%20Mizoram&output=embed"></iframe>
       </section>
+      <section class="map-panel" id="custom-ad-section" style="display:none">
+        <h2>Featured Partner</h2>
+        <div id="custom-ad-list"></div>
+      </section>
       <section class="staff-panel" id="staff-panel">
         <h2>Staff Backend <span class="tag" id="staff-role"></span></h2>
         <div class="admin-tools" id="admin-tools">
@@ -208,6 +212,16 @@
         <div id="moderator-list"></div>
         <h2>Plugin Manager</h2>
         <div id="plugin-list"></div>
+        <h2>Custom Advertising</h2>
+        <form id="ad-form">
+          <input name="title" placeholder="Ad title" required />
+          <input name="body" placeholder="Ad message" required />
+          <input name="imageUrl" placeholder="Image URL (optional)" />
+          <input name="targetUrl" placeholder="Target URL (optional)" />
+          <select name="placement"><option>HOME</option><option>BOOKINGS</option><option>WALLET</option></select>
+          <button class="book-button">Create custom ad</button>
+        </form>
+        <div id="ad-list"></div>
         <h2>System Notifications & Fix Hints</h2>
         <div id="event-list"></div>
         <h2>Partner Registrations</h2>
@@ -271,7 +285,9 @@
           document.getElementById('admin-tools').style.display = result.role === 'SUPER_ADMIN' ? 'block' : 'none';
           document.querySelectorAll('.non-counter-tools').forEach((element) => { element.style.display = result.role === 'COUNTER_STAFF' ? 'none' : 'grid'; });
           if (result.role === 'COUNTER_STAFF') document.getElementById('counter-tools').classList.add('open');
+          loadAds();
           if (result.role !== 'CUSTOMER') { loadModerators(); loadPlugins(); loadSystemEvents(); loadProviders(); loadOperations(); }
+          if (result.role === 'SUPER_ADMIN') loadAdsAdmin();
         } catch (error) { authError.textContent = error.message; }
       });
       document.getElementById('staff-access').addEventListener('click', () => { authGate.style.display = 'grid'; });
@@ -297,6 +313,25 @@
         const response = await staffFetch('/api/admin/providers'); const result = await response.json();
         document.getElementById('provider-list').innerHTML = result.providers.map((item) => `<div class="event-row"><strong>${item.service.replace('plugin_', '')}</strong> · ${item.status}<br>${item.name} · ${item.phone}<br>${item.location}<br>${item.details}${item.status === 'PENDING_REVIEW' ? ` <button class="remove provider-approve" data-id="${item.id}">Approve</button>` : ''}</div>`).join('');
       };
+      const loadAds = async () => {
+        const response = await fetch('/api/ads'); const result = await response.json();
+        document.getElementById('custom-ad-section').style.display = result.ads.length ? 'block' : 'none';
+        document.getElementById('custom-ad-list').innerHTML = result.ads.map((ad) => `<div class="event-row"><strong>${ad.title}</strong><br>${ad.body}${ad.targetUrl ? ` <a href="${ad.targetUrl}" target="_blank">Open</a>` : ''}</div>`).join('');
+      };
+      const loadAdsAdmin = async () => {
+        const response = await staffFetch('/api/admin/ads'); const result = await response.json();
+        document.getElementById('ad-list').innerHTML = result.ads.map((ad) => `<div class="plugin-row"><span>${ad.title}<br>${ad.enabled ? 'Enabled' : 'Disabled'} · ${ad.placement}</span><span><button class="book-button ad-toggle" data-id="${ad.id}" data-enabled="${ad.enabled}">${ad.enabled ? 'Disable' : 'Enable'}</button> <button class="remove ad-delete" data-id="${ad.id}">Delete</button></span></div>`).join('');
+      };
+      document.getElementById('ad-form').addEventListener('submit', async (event) => {
+        event.preventDefault(); const response = await staffFetch('/api/admin/ads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(event.target))) });
+        if (response.ok) { event.target.reset(); loadAdsAdmin(); loadAds(); }
+      });
+      document.getElementById('ad-list').addEventListener('click', async (event) => {
+        const id = event.target.dataset.id; if (!id) return;
+        if (event.target.classList.contains('ad-toggle')) await staffFetch(`/api/admin/ads/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: event.target.dataset.enabled !== 'true' }) });
+        if (event.target.classList.contains('ad-delete')) await staffFetch(`/api/admin/ads/${id}`, { method: 'DELETE' });
+        loadAdsAdmin(); loadAds();
+      });
       document.getElementById('provider-form').addEventListener('submit', async (event) => {
         event.preventDefault();
         const response = await fetch('/api/providers/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(event.target))) });

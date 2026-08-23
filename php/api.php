@@ -17,6 +17,7 @@ $moderatorsFile = $dataDir . '/moderators.json';
 $authFile = $dataDir . '/auth.json';
 $operationsFile = $dataDir . '/operations.json';
 $providersFile = $dataDir . '/providers.json';
+$adsFile = $dataDir . '/custom-ads.json';
 $faresFile = $dataDir . '/fares.json';
 $walletFile = $dataDir . '/wallet-ledger.json';
 $initialBookings = [
@@ -54,6 +55,27 @@ if ($route === '/api/health' || str_ends_with($route, '/health')) reply(['ok' =>
 $input = json_decode((string) file_get_contents('php://input'), true);
 $current = bookings($dataFile, $dataDir, $initialBookings);
 $staff = staffUser($authFile);
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/ads' || str_ends_with($route, '/ads'))) reply(['ads' => array_values(array_filter(stored($adsFile), fn ($item) => !empty($item['enabled'])))]);
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/admin/ads' || str_ends_with($route, '/admin/ads'))) {
+    if (($staff['role'] ?? '') !== 'SUPER_ADMIN') reply(['error' => 'Super Admin access required'], 403);
+    reply(['ads' => stored($adsFile)]);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/admin/ads' || str_ends_with($route, '/admin/ads'))) {
+    if (($staff['role'] ?? '') !== 'SUPER_ADMIN') reply(['error' => 'Super Admin access required'], 403);
+    $title = trim((string) ($input['title'] ?? '')); $body = trim((string) ($input['body'] ?? ''));
+    if ($title === '' || $body === '') reply(['error' => 'Ad title and message are required'], 400);
+    $ad = ['id' => bin2hex(random_bytes(12)), 'title' => $title, 'body' => $body, 'imageUrl' => (string) ($input['imageUrl'] ?? ''), 'targetUrl' => (string) ($input['targetUrl'] ?? ''), 'placement' => (string) ($input['placement'] ?? 'HOME'), 'enabled' => true, 'createdAt' => date(DATE_ATOM)];
+    saveStored($adsFile, array_merge([$ad], stored($adsFile))); reply($ad, 201);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'PATCH' && preg_match('#/(?:api/)?admin/ads/([^/]+)$#', $route, $match)) {
+    if (($staff['role'] ?? '') !== 'SUPER_ADMIN') reply(['error' => 'Super Admin access required'], 403);
+    $ads = stored($adsFile); foreach ($ads as $index => $ad) if ($ad['id'] === $match[1]) { $ads[$index] = array_merge($ad, $input ?: [], ['updatedAt' => date(DATE_ATOM)]); saveStored($adsFile, $ads); reply($ads[$index]); }
+    reply(['error' => 'Ad not found'], 404);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && preg_match('#/(?:api/)?admin/ads/([^/]+)$#', $route, $match)) {
+    if (($staff['role'] ?? '') !== 'SUPER_ADMIN') reply(['error' => 'Super Admin access required'], 403);
+    $ads = stored($adsFile); $next = array_values(array_filter($ads, fn ($item) => $item['id'] !== $match[1])); if (count($next) === count($ads)) reply(['error' => 'Ad not found'], 404); saveStored($adsFile, $next); reply(['ok' => true]);
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/providers/register' || str_ends_with($route, '/providers/register'))) {
     $allowed = ['workshop', 'mechanic', 'medical', 'emergency', 'support', 'store'];
     $service = strtolower((string) ($input['service'] ?? '')); $name = trim((string) ($input['name'] ?? '')); $phone = preg_replace('/\D/', '', (string) ($input['phone'] ?? '')); $location = trim((string) ($input['location'] ?? '')); $details = trim((string) ($input['details'] ?? ''));
