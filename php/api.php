@@ -80,6 +80,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && str_starts_with($route, '/api/count
     $operation = ['id' => bin2hex(random_bytes(12)), 'type' => $types[$kind], 'vehicleId' => $input['vehicleId'] ?? null, 'ticketId' => $input['ticketId'] ?? null, 'message' => (string) ($input['service'] ?? $input['reason'] ?? $input['message'] ?? ''), 'location' => $input['location'] ?? null, 'refundFee' => (float) ($input['refundFee'] ?? 0), 'contactChannel' => $input['contactChannel'] ?? 'MESSAGE', 'status' => in_array($types[$kind], ['VEHICLE_SERVICE_REQUEST', 'REFUND_REQUEST'], true) ? 'PENDING_APPROVAL' : 'OPEN', 'createdBy' => $staff['phone'], 'createdAt' => date(DATE_ATOM)];
     saveStored($operationsFile, array_merge([$operation], stored($operationsFile))); reply($operation, 201);
 }
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/counter/wallet' || str_ends_with($route, '/counter/wallet'))) {
+    if (($staff['role'] ?? '') !== 'COUNTER_STAFF') reply(['error' => 'Counter Staff access required'], 403);
+    $entries = array_values(array_filter(stored($walletFile), fn ($item) => $item['account'] === $staff['phone'] && $item['status'] === 'CREDITED'));
+    reply(['account' => $staff['phone'], 'balance' => array_sum(array_column($entries, 'amount')), 'entries' => $entries]);
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/auth/request-pin' || str_ends_with($route, '/auth/request-pin'))) {
     $phone = (string) ($input['phone'] ?? '');
     $adminPhone = getenv('ADMIN_PHONE') ?: '9378160106';

@@ -146,6 +146,12 @@ const server = http.createServer((request, response) => {
       return sendJson(response, 201, fare);
     });
   }
+  if (request.method === 'GET' && request.url === '/api/counter/wallet') {
+    const user = requireRole(request, ['COUNTER_STAFF']);
+    if (!user) return sendJson(response, 403, { error: 'Counter Staff access required' });
+    const ledger = readWalletLedger().filter((entry) => entry.account === user.phone && entry.status === 'CREDITED');
+    return sendJson(response, 200, { account: user.phone, balance: ledger.reduce((total, entry) => total + entry.amount, 0), entries: ledger });
+  }
   if (request.method === 'POST' && request.url === '/api/counter/ticket-booking') {
     if (!requireRole(request, ['COUNTER_STAFF'])) return sendJson(response, 403, { error: 'Counter Staff access required' });
     return readJson(request).then((input) => {
