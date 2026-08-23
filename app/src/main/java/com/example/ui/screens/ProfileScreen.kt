@@ -452,28 +452,15 @@ fun ProfileScreen(
       }
     }
 
-    // 5. Account Switcher & Logout
+    // 5. Logout
     item {
       Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.End
       ) {
         Button(
-          onClick = {
-            onSwitchRoleClick(UserRole.SUPER_ADMIN)
-          },
-          modifier = Modifier.weight(1f).height(46.dp),
-          colors = ButtonDefaults.buttonColors(containerColor = ZoxPurplePrimary, contentColor = Color.White),
-          shape = RoundedCornerShape(12.dp)
-        ) {
-          Icon(Icons.Default.AdminPanelSettings, contentDescription = null, modifier = Modifier.size(16.dp))
-          Spacer(modifier = Modifier.width(6.dp))
-          Text("SUPER ADMIN PORTAL", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        }
-
-        Button(
           onClick = onLogoutClick,
-          modifier = Modifier.weight(0.7f).height(46.dp),
+          modifier = Modifier.fillMaxWidth().height(46.dp),
           colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF28263C), contentColor = ZoxError),
           shape = RoundedCornerShape(12.dp)
         ) {

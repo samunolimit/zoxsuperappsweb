@@ -19,8 +19,7 @@ enum class AppTab {
   HOME,
   BOOKINGS,
   WALLET,
-  PROFILE,
-  ADMIN
+  PROFILE
 }
 
 data class ZoxUiState(
@@ -75,7 +74,7 @@ class ZoxViewModel(
     _uiState.value = _uiState.value.copy(
       isAuthenticated = true,
       showOnboardingModal = isFirstTime,
-      currentTab = if (role == UserRole.SUPER_ADMIN || role == UserRole.COUNTER_STAFF) AppTab.ADMIN else AppTab.HOME
+      currentTab = AppTab.HOME
     )
   }
 

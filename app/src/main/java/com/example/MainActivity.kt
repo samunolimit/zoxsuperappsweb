@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
@@ -55,7 +54,6 @@ import com.example.model.UserRole
 import com.example.ui.components.AdMobInterstitialAdModal
 import com.example.ui.components.AdMobRewardedVideoModal
 import com.example.ui.screens.AddMoneyModal
-import com.example.ui.screens.AdminDashboardScreen
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.BookingsScreen
 import com.example.ui.screens.CityPickerModal
@@ -250,27 +248,6 @@ fun ZoxSuperApp(
             modifier = Modifier.testTag("nav_profile")
           )
 
-          // ADMIN (Accessible to Super Admin or Switcher)
-          NavigationBarItem(
-            selected = uiState.currentTab == AppTab.ADMIN,
-            onClick = { viewModel.setTab(AppTab.ADMIN) },
-            icon = {
-              Icon(
-                imageVector = Icons.Default.AdminPanelSettings,
-                contentDescription = "Vault Admin",
-                modifier = Modifier.size(24.dp)
-              )
-            },
-            label = { Text("Vault", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
-            colors = NavigationBarItemDefaults.colors(
-              selectedIconColor = Color.White,
-              selectedTextColor = ZoxPurplePrimary,
-              indicatorColor = ZoxPurplePrimary,
-              unselectedIconColor = Color(0xFFA0A0BA),
-              unselectedTextColor = Color(0xFFA0A0BA)
-            ),
-            modifier = Modifier.testTag("nav_admin")
-          )
         }
       },
       snackbarHost = {
@@ -332,21 +309,6 @@ fun ZoxSuperApp(
             },
             onLogoutClick = { viewModel.logout() },
             onOpenWebPortal = { viewModel.toggleWebPortal(true) }
-          )
-          AppTab.ADMIN -> AdminDashboardScreen(
-            plugins = plugins,
-            vaultConfig = vaultConfig,
-            kycQueue = kycQueue,
-            routeVehicles = routeVehicles,
-            staffRole = userProfile.role,
-            onTogglePlugin = { id, enabled -> viewModel.togglePlugin(id, enabled) },
-            onInstallUninstallPlugin = { id, installed -> viewModel.installUninstallPlugin(id, installed) },
-            onConfigurePlugin = { id -> viewModel.togglePluginConfigModal(true, id) },
-            onSaveVaultConfig = { config -> viewModel.saveVaultConfig(config) },
-            onApproveKyc = { id -> viewModel.approveKyc(id) },
-            onRejectKyc = { id, reason -> viewModel.rejectKyc(id, reason) },
-            onOpenWebPortal = { viewModel.toggleWebPortal(true) },
-            onOpenEnrollVehicle = { viewModel.toggleRouteVehicleModal(true) }
           )
         }
       }
