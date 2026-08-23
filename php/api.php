@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/auth/request-pin'
     $adminPhone = getenv('ADMIN_PHONE') ?: '9378160106';
     $counterPhone = getenv('COUNTER_PHONE') ?: '1122334455';
     $moderators = stored($moderatorsFile);
-    if ($phone !== $adminPhone && $phone !== $counterPhone && !array_filter($moderators, fn ($item) => $item['phone'] === $phone)) reply(['error' => 'Account is not authorized for staff access'], 403);
+    if (!preg_match('/^\d{10}$/', $phone)) reply(['error' => 'Enter a valid 10-digit mobile number'], 400);
     $requestId = bin2hex(random_bytes(16));
     $pin = getenv('ADMIN_PIN') ?: '123456';
     $requests = stored($authFile);
@@ -114,7 +114,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/auth/verify-pin' 
     $adminPhone = getenv('ADMIN_PHONE') ?: '9378160106';
     $counterPhone = getenv('COUNTER_PHONE') ?: '1122334455';
     $token = bin2hex(random_bytes(32));
-    $sessions[] = ['token' => $token, 'phone' => $match['phone'], 'role' => $match['phone'] === $adminPhone ? 'SUPER_ADMIN' : ($match['phone'] === $counterPhone ? 'COUNTER_STAFF' : 'MODERATOR'), 'expiresAt' => time() + 28800];
+    $isStaff = $match['phone'] === $adminPhone || $match['phone'] === $counterPhone || (bool) array_filter(stored($moderatorsFile), fn ($item) => $item['phone'] === $match['phone']);
+    $sessions[] = ['token' => $token, 'phone' => $match['phone'], 'role' => $match['phone'] === $adminPhone ? 'SUPER_ADMIN' : ($match['phone'] === $counterPhone ? 'COUNTER_STAFF' : ($isStaff ? 'MODERATOR' : 'CUSTOMER')), 'expiresAt' => time() + 28800];
     saveStored($authFile, $sessions);
     reply(['token' => $token, 'role' => $sessions[array_key_last($sessions)]['role']]);
 }
@@ -183,6 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && preg_match('#/(?:api/)?admin/operat
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/summary' || str_ends_with($route, '/summary'))) {
+    if (!$staff) reply(['error' => 'Login required'], 401);
     reply([
         'user' => ['name' => 'Lalremruata Ralte', 'city' => 'Aizawl, Mizoram', 'wallet' => 1450, 'coins' => 380],
         'metrics' => ['activeBookings' => count(array_filter($current, fn ($booking) => ($booking['status'] ?? '') !== 'COMPLETED'), 'totalBookings' => count($current)],
@@ -191,6 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/summary' || str_en
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/bookings' || str_ends_with($route, '/bookings'))) {
+    if (!$staff) reply(['error' => 'Login required'], 401);
     $input = json_decode((string) file_get_contents('php://input'), true);
     if (!is_array($input) || empty($input['service']) || empty($input['pickup']) || empty($input['destination']) || (float) ($input['amount'] ?? 0) <= 0) {
         reply(['error' => 'Invalid booking'], 400);

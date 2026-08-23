@@ -98,7 +98,7 @@ const server = http.createServer((request, response) => {
   }
   if (request.method === 'POST' && request.url === '/api/auth/request-pin') {
     return readJson(request).then((input) => {
-      if (!input?.phone || ![adminPhone, counterPhone].includes(String(input.phone)) && !readModerators().some((item) => item.phone === String(input.phone))) return sendJson(response, 403, { error: 'Account is not authorized for staff access' });
+      if (!input?.phone || !/^\d{10}$/.test(String(input.phone))) return sendJson(response, 400, { error: 'Enter a valid 10-digit mobile number' });
       const requestId = crypto.randomUUID();
       const pin = process.env.NODE_ENV === 'production' ? null : (adminPin || '123456');
       pinRequests.set(requestId, { phone: String(input.phone), pin, expiresAt: Date.now() + 5 * 60 * 1000 });
@@ -110,7 +110,8 @@ const server = http.createServer((request, response) => {
       const pending = pinRequests.get(input?.requestId);
       if (!pending || pending.expiresAt < Date.now() || String(input.pin) !== String(pending.pin)) return sendJson(response, 401, { error: 'Invalid or expired authentication PIN' });
       pinRequests.delete(input.requestId);
-      const role = pending.phone === adminPhone ? 'SUPER_ADMIN' : pending.phone === counterPhone ? 'COUNTER_STAFF' : 'MODERATOR';
+      const isStaff = [adminPhone, counterPhone].includes(pending.phone) || readModerators().some((item) => item.phone === pending.phone);
+      const role = pending.phone === adminPhone ? 'SUPER_ADMIN' : pending.phone === counterPhone ? 'COUNTER_STAFF' : isStaff ? 'MODERATOR' : 'CUSTOMER';
       const token = crypto.randomBytes(32).toString('hex');
       sessions.set(token, { phone: pending.phone, role, createdAt: Date.now() });
       return sendJson(response, 200, { token, role });
@@ -256,6 +257,7 @@ const server = http.createServer((request, response) => {
   }
   if (request.method === 'GET' && request.url === '/api/health') return sendJson(response, 200, { ok: true, service: 'zox-api' });
   if (request.method === 'GET' && request.url === '/api/summary') {
+    if (!authUser(request)) return sendJson(response, 401, { error: 'Login required' });
     const bookings = readBookings();
     return sendJson(response, 200, {
       user: { name: 'Lalremruata Ralte', city: 'Aizawl, Mizoram', wallet: 1450, coins: 380 },
@@ -264,6 +266,7 @@ const server = http.createServer((request, response) => {
     });
   }
   if (request.method === 'POST' && request.url === '/api/bookings') {
+    if (!authUser(request)) return sendJson(response, 401, { error: 'Login required' });
     let body = '';
     request.on('data', (chunk) => { body += chunk; });
     request.on('end', () => {

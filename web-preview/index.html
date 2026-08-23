@@ -73,7 +73,7 @@
     }
     .price { color: var(--orange); font-weight: 900; }
     .api-status { color: var(--muted); font-size: 11px; margin: 12px 0 0; text-align: center; }
-    .auth-gate { position: fixed; inset: 0; z-index: 5; display: none; place-items: center; padding: 18px; background: rgba(10, 10, 18, .94); }
+    .auth-gate { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 18px; background: rgba(10, 10, 18, .94); }
     .auth-box { width: min(420px, 100%); padding: 26px; border: 1px solid #484568; border-radius: 20px; background: #242436; box-shadow: 0 20px 70px rgba(0,0,0,.5); }
     .auth-box h1 { margin: 0 0 6px; font-size: 22px; }
     .auth-box p { color: var(--muted); font-size: 12px; line-height: 1.5; }
@@ -119,14 +119,13 @@
   <div class="auth-gate" id="auth-gate">
     <div class="auth-box">
       <div class="logo">Z</div>
-      <h1>ZOX Staff Backend</h1>
-      <p>Admin and moderator access requires a PIN requested by the server. Customers can continue without staff access.</p>
-      <input id="staff-phone" inputmode="numeric" maxlength="10" placeholder="Staff mobile number" />
-      <button class="book-button" id="request-pin">Request authentication PIN</button>
+      <h1>Sign in to ZOX</h1>
+      <p>Enter your registered mobile number. A one-time authentication PIN is required before using the web app.</p>
+      <input id="staff-phone" inputmode="numeric" maxlength="10" placeholder="10-digit mobile number" />
+      <button class="book-button" id="request-pin">Request login PIN</button>
       <input id="staff-pin" inputmode="numeric" maxlength="6" placeholder="PIN received" style="display:none" />
       <button class="book-button" id="verify-pin" style="display:none">Open backend</button>
       <div class="auth-error" id="auth-error"></div>
-      <button class="book-button" id="continue-public" style="background:#383652;color:white">Continue as customer</button>
     </div>
   </div>
   <div class="phone">
@@ -267,19 +266,14 @@
           const result = await authRequest('/api/auth/verify-pin', { requestId, pin: document.getElementById('staff-pin').value });
           staffToken = result.token; staffRole = result.role;
           authGate.style.display = 'none';
-          document.getElementById('staff-panel').classList.add('open');
+          if (['SUPER_ADMIN', 'MODERATOR', 'COUNTER_STAFF'].includes(result.role)) document.getElementById('staff-panel').classList.add('open');
           document.getElementById('staff-role').textContent = result.role;
           document.getElementById('admin-tools').style.display = result.role === 'SUPER_ADMIN' ? 'block' : 'none';
           document.querySelectorAll('.non-counter-tools').forEach((element) => { element.style.display = result.role === 'COUNTER_STAFF' ? 'none' : 'grid'; });
           if (result.role === 'COUNTER_STAFF') document.getElementById('counter-tools').classList.add('open');
-          loadModerators();
-          loadPlugins();
-          loadSystemEvents();
-          loadProviders();
-          loadOperations();
+          if (result.role !== 'CUSTOMER') { loadModerators(); loadPlugins(); loadSystemEvents(); loadProviders(); loadOperations(); }
         } catch (error) { authError.textContent = error.message; }
       });
-      document.getElementById('continue-public').addEventListener('click', () => { authGate.style.display = 'none'; });
       document.getElementById('staff-access').addEventListener('click', () => { authGate.style.display = 'grid'; });
       const loadModerators = async () => {
         if (staffRole !== 'SUPER_ADMIN') { document.getElementById('moderator-form').style.display = 'none'; return; }
@@ -363,7 +357,7 @@
       document.getElementById('refund-form').addEventListener('submit', (event) => { event.preventDefault(); counterPost('/api/counter/refund-request', event.target); });
       document.getElementById('incident-form').addEventListener('submit', (event) => { event.preventDefault(); counterPost('/api/counter/incident', event.target); });
       const loadSummary = async () => {
-        const response = await fetch('/api/summary');
+        const response = await fetch('/api/summary', { headers: { Authorization: `Bearer ${staffToken}` } });
         if (!response.ok) throw new Error('API request failed');
         return response.json();
       };
@@ -386,7 +380,7 @@
       const createBooking = async (service, pickup, destination) => {
         const booking = { service, pickup, destination, amount: 120 };
         try {
-          const response = await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(booking) });
+          const response = await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${staffToken}` }, body: JSON.stringify(booking) });
           if (!response.ok) throw new Error('API request failed');
           window.alert('Booking confirmed and saved to the server.');
         } catch (_error) {
