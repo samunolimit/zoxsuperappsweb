@@ -749,7 +749,7 @@ fun KycUploadModal(
           // Role Selection (Mock Dropdown logic using buttons for simplicity)
           Text("Select Requested Role:", color = Color.White, fontSize = 12.sp)
           Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            val roles = listOf(com.example.model.UserRole.DRIVER, com.example.model.UserRole.TIRHKAH_RUNNER, com.example.model.UserRole.VEHICLE_OWNER, com.example.model.UserRole.COUNTER_STAFF)
+            val roles = listOf(com.example.model.UserRole.DRIVER, com.example.model.UserRole.TIRHKAH_RUNNER, com.example.model.UserRole.VEHICLE_OWNER)
             roles.forEach { role ->
               Button(
                 onClick = { requestedRole = role },

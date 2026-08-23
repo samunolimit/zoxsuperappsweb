@@ -272,7 +272,7 @@ class ZoxViewModel(
     repository.enrollRouteVehicle(vehicle)
     _uiState.value = _uiState.value.copy(
       showRouteVehicleModal = false,
-      alertMessage = "Route Vehicle enrolled successfully! Counter Desk notified."
+      alertMessage = "Route Vehicle enrolled successfully! Operations team notified."
     )
     runExpiryAudit()
   }
