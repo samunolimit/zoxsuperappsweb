@@ -73,6 +73,18 @@
     }
     .price { color: var(--orange); font-weight: 900; }
     .api-status { color: var(--muted); font-size: 11px; margin: 12px 0 0; text-align: center; }
+    .auth-gate { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 18px; background: rgba(10, 10, 18, .94); }
+    .auth-box { width: min(420px, 100%); padding: 26px; border: 1px solid #484568; border-radius: 20px; background: #242436; box-shadow: 0 20px 70px rgba(0,0,0,.5); }
+    .auth-box h1 { margin: 0 0 6px; font-size: 22px; }
+    .auth-box p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .auth-box input { margin: 8px 0 0; }
+    .auth-error { color: #ff8b83; font-size: 12px; min-height: 18px; }
+    .staff-panel { display: none; margin-top: 18px; padding: 16px; border: 1px solid #484568; border-radius: 16px; background: #242436; }
+    .staff-panel.open { display: block; }
+    .staff-panel form { display: grid; gap: 8px; }
+    .staff-panel input { margin: 0; }
+    .moderator-row { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid #36344e; font-size: 12px; }
+    .remove { border: 0; background: transparent; color: #ff8b83; cursor: pointer; }
     .book-button { display: block; width: 100%; margin-top: 14px; border: 0; border-radius: 12px; padding: 12px; background: var(--orange); color: #17131f; font-weight: 800; cursor: pointer; }
     .book-button:hover { filter: brightness(1.08); }
     .booking-form { display: none; gap: 8px; margin-top: 12px; }
@@ -95,6 +107,19 @@
   </style>
 </head>
 <body>
+  <div class="auth-gate" id="auth-gate">
+    <div class="auth-box">
+      <div class="logo">Z</div>
+      <h1>ZOX Staff Backend</h1>
+      <p>Admin and moderator access requires a PIN requested by the server. Customers can continue without staff access.</p>
+      <input id="staff-phone" inputmode="numeric" maxlength="10" placeholder="Staff mobile number" />
+      <button class="book-button" id="request-pin">Request authentication PIN</button>
+      <input id="staff-pin" inputmode="numeric" maxlength="6" placeholder="PIN received" style="display:none" />
+      <button class="book-button" id="verify-pin" style="display:none">Open backend</button>
+      <div class="auth-error" id="auth-error"></div>
+      <button class="book-button" id="continue-public" style="background:#383652;color:white">Continue as customer</button>
+    </div>
+  </div>
   <div class="phone">
     <header>
       <div class="brand">
@@ -150,6 +175,15 @@
         <h2>ZOX Fleet Radar <span class="tag">AIZAWL LIVE VIEW</span></h2>
         <iframe title="Google Maps view of Aizawl" loading="lazy" src="https://www.google.com/maps?q=Aizawl%2C%20Mizoram&output=embed"></iframe>
       </section>
+      <section class="staff-panel" id="staff-panel">
+        <h2>Staff Backend <span class="tag" id="staff-role"></span></h2>
+        <form id="moderator-form">
+          <input name="name" placeholder="Moderator name" required />
+          <input name="phone" inputmode="numeric" maxlength="10" placeholder="Moderator mobile number" required />
+          <button class="book-button" type="submit">Add moderator</button>
+        </form>
+        <div id="moderator-list"></div>
+      </section>
     </main>
     <nav>
       <div class="on">Home</div>
@@ -161,6 +195,54 @@
   </div>
     <script>
       const status = document.getElementById('api-status');
+      const authGate = document.getElementById('auth-gate');
+      const authError = document.getElementById('auth-error');
+      let staffToken = '';
+      let staffRole = '';
+      let requestId = '';
+      const authRequest = async (path, body) => {
+        const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Authentication failed');
+        return result;
+      };
+      document.getElementById('request-pin').addEventListener('click', async () => {
+        try {
+          const result = await authRequest('/api/auth/request-pin', { phone: document.getElementById('staff-phone').value });
+          requestId = result.requestId;
+          document.getElementById('staff-pin').style.display = 'block';
+          document.getElementById('verify-pin').style.display = 'block';
+          authError.textContent = result.demoPin ? `Development PIN: ${result.demoPin}` : result.message;
+        } catch (error) { authError.textContent = error.message; }
+      });
+      document.getElementById('verify-pin').addEventListener('click', async () => {
+        try {
+          const result = await authRequest('/api/auth/verify-pin', { requestId, pin: document.getElementById('staff-pin').value });
+          staffToken = result.token; staffRole = result.role;
+          authGate.style.display = 'none';
+          document.getElementById('staff-panel').classList.add('open');
+          document.getElementById('staff-role').textContent = result.role;
+          loadModerators();
+        } catch (error) { authError.textContent = error.message; }
+      });
+      document.getElementById('continue-public').addEventListener('click', () => { authGate.style.display = 'none'; });
+      const loadModerators = async () => {
+        if (staffRole !== 'SUPER_ADMIN') { document.getElementById('moderator-form').style.display = 'none'; return; }
+        const response = await fetch('/api/admin/moderators', { headers: { Authorization: `Bearer ${staffToken}` } });
+        const result = await response.json();
+        document.getElementById('moderator-list').innerHTML = result.moderators.map((item) => `<div class="moderator-row"><span>${item.name}<br>${item.phone}</span><button class="remove" data-id="${item.id}">Remove</button></div>`).join('');
+      };
+      document.getElementById('moderator-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const form = new FormData(event.target);
+        await fetch('/api/admin/moderators', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${staffToken}` }, body: JSON.stringify(Object.fromEntries(form)) });
+        event.target.reset(); loadModerators();
+      });
+      document.getElementById('moderator-list').addEventListener('click', async (event) => {
+        if (!event.target.dataset.id) return;
+        await fetch(`/api/admin/moderators/${event.target.dataset.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${staffToken}` } });
+        loadModerators();
+      });
       const loadSummary = async () => {
         const response = await fetch('/api/summary');
         if (!response.ok) throw new Error('API request failed');

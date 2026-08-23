@@ -13,6 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 $dataDir = dirname(__DIR__) . '/data';
 $dataFile = $dataDir . '/zox.json';
+$moderatorsFile = $dataDir . '/moderators.json';
+$authFile = $dataDir . '/auth.json';
 $initialBookings = [
     ['id' => 1, 'service' => 'Motor Hire', 'pickup' => 'Chanmari Hub', 'destination' => 'Chanmari Hub', 'amount' => 480, 'status' => 'ON THE WAY'],
     ['id' => 2, 'service' => 'Tirhkah Express', 'pickup' => 'Civil Hospital', 'destination' => 'Khatla South', 'amount' => 125, 'status' => 'COMPLETED'],
@@ -29,9 +31,69 @@ function reply(array $body, int $status = 200): never {
     echo json_encode($body);
     exit;
 }
+function stored(string $file, string $default = '[]'): array {
+    if (!file_exists($file)) file_put_contents($file, $default);
+    $value = json_decode((string) file_get_contents($file), true);
+    return is_array($value) ? $value : [];
+}
+function saveStored(string $file, array $value): void { file_put_contents($file, json_encode($value, JSON_PRETTY_PRINT), LOCK_EX); }
+function staffUser(string $authFile): ?array {
+    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $token = preg_replace('/^Bearer\s+/i', '', $header);
+    foreach (stored($authFile) as $session) if (hash_equals($session['token'], $token) && $session['expiresAt'] > time()) return $session;
+    return null;
+}
 
 $route = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
 if ($route === '/api/health' || str_ends_with($route, '/health')) reply(['ok' => true, 'service' => 'zox-php-api']);
+
+$input = json_decode((string) file_get_contents('php://input'), true);
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/auth/request-pin' || str_ends_with($route, '/auth/request-pin'))) {
+    $phone = (string) ($input['phone'] ?? '');
+    $adminPhone = getenv('ADMIN_PHONE') ?: '9378160106';
+    $moderators = stored($moderatorsFile);
+    if ($phone !== $adminPhone && !array_filter($moderators, fn ($item) => $item['phone'] === $phone)) reply(['error' => 'Account is not authorized for staff access'], 403);
+    $requestId = bin2hex(random_bytes(16));
+    $pin = getenv('ADMIN_PIN') ?: '123456';
+    $requests = stored($authFile);
+    $requests[] = ['requestId' => $requestId, 'phone' => $phone, 'pin' => $pin, 'expiresAt' => time() + 300];
+    saveStored($authFile, $requests);
+    reply(['requestId' => $requestId, 'message' => 'Authentication PIN requested. Check your configured delivery channel.', 'demoPin' => getenv('APP_ENV') === 'production' ? null : $pin]);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/auth/verify-pin' || str_ends_with($route, '/auth/verify-pin'))) {
+    $sessions = stored($authFile);
+    $match = null;
+    foreach ($sessions as $session) if (($session['requestId'] ?? '') === ($input['requestId'] ?? '') && $session['expiresAt'] > time() && hash_equals((string) $session['pin'], (string) ($input['pin'] ?? ''))) $match = $session;
+    if (!$match) reply(['error' => 'Invalid or expired authentication PIN'], 401);
+    $adminPhone = getenv('ADMIN_PHONE') ?: '9378160106';
+    $token = bin2hex(random_bytes(32));
+    $sessions[] = ['token' => $token, 'phone' => $match['phone'], 'role' => $match['phone'] === $adminPhone ? 'SUPER_ADMIN' : 'MODERATOR', 'expiresAt' => time() + 28800];
+    saveStored($authFile, $sessions);
+    reply(['token' => $token, 'role' => $sessions[array_key_last($sessions)]['role']]);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/admin/moderators' || str_ends_with($route, '/admin/moderators'))) {
+    if ((staffUser($authFile)['role'] ?? '') !== 'SUPER_ADMIN') reply(['error' => 'Super Admin access required'], 403);
+    reply(['moderators' => stored($moderatorsFile)]);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/admin/moderators' || str_ends_with($route, '/admin/moderators'))) {
+    if ((staffUser($authFile)['role'] ?? '') !== 'SUPER_ADMIN') reply(['error' => 'Super Admin access required'], 403);
+    $phone = preg_replace('/\D/', '', (string) ($input['phone'] ?? ''));
+    $name = trim((string) ($input['name'] ?? ''));
+    $moderators = stored($moderatorsFile);
+    if (!preg_match('/^\d{10}$/', $phone) || $name === '') reply(['error' => 'Name and 10-digit phone are required'], 400);
+    if (array_filter($moderators, fn ($item) => $item['phone'] === $phone)) reply(['error' => 'Account already exists'], 409);
+    $moderator = ['id' => bin2hex(random_bytes(12)), 'name' => $name, 'phone' => $phone, 'createdAt' => date(DATE_ATOM)];
+    saveStored($moderatorsFile, array_merge([$moderator], $moderators));
+    reply($moderator, 201);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && preg_match('#/(?:api/)?admin/moderators/([^/]+)$#', $route, $match)) {
+    if ((staffUser($authFile)['role'] ?? '') !== 'SUPER_ADMIN') reply(['error' => 'Super Admin access required'], 403);
+    $moderators = stored($moderatorsFile);
+    $next = array_values(array_filter($moderators, fn ($item) => $item['id'] !== $match[1]));
+    if (count($next) === count($moderators)) reply(['error' => 'Moderator not found'], 404);
+    saveStored($moderatorsFile, $next);
+    reply(['ok' => true]);
+}
 
 $current = bookings($dataFile, $dataDir, $initialBookings);
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/summary' || str_ends_with($route, '/summary'))) {
