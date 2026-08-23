@@ -391,6 +391,33 @@ fun ProfileScreen(
 
           Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF2E2C44)))
 
+          if (userProfile.role == UserRole.SUPER_ADMIN || userProfile.role == UserRole.MODERATOR || userProfile.role == UserRole.COUNTER_STAFF) {
+            Row(
+              modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF302044))
+                .clickable { onOpenWebPortal() }
+                .padding(12.dp)
+                .testTag("profile_staff_backend_item"),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+              ) {
+                Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = ZoxOrangeAccent)
+                Column {
+                  Text(text = "Open Staff Backend", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                  Text(text = "Manage operations from the secure web console", fontSize = 10.sp, color = Color(0xFFA5A5BC))
+                }
+              }
+              Text(text = "OPEN", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ZoxOrangeAccent)
+            }
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF2E2C44)))
+          }
+
           // Web Cloud Portal Row
           Row(
             modifier = Modifier
