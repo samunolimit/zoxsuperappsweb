@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -574,6 +575,7 @@ fun PluginGridItem(
   Column(
     modifier = modifier
       .clickable { onClick() }
+      .animateContentSize()
       .padding(4.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -581,6 +583,7 @@ fun PluginGridItem(
     Box(
       modifier = Modifier
         .size(64.dp)
+        .animateContentSize()
         .clip(RoundedCornerShape(16.dp))
         .background(
           Brush.linearGradient(
