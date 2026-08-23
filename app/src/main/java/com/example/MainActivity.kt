@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -40,6 +41,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +56,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.model.UserRole
 import com.example.ui.components.AdMobInterstitialAdModal
 import com.example.ui.components.AdMobRewardedVideoModal
+import com.example.ui.components.ZoxLogoEmblem
 import com.example.ui.screens.AddMoneyModal
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.BookingsScreen
@@ -91,6 +95,20 @@ class MainActivity : ComponentActivity() {
 fun ZoxSuperApp(
   viewModel: ZoxViewModel = viewModel()
 ) {
+  var showSplash by remember { mutableStateOf(true) }
+  LaunchedEffect(Unit) {
+    kotlinx.coroutines.delay(1600)
+    showSplash = false
+  }
+  AnimatedVisibility(
+    visible = showSplash,
+    enter = fadeIn(),
+    exit = fadeOut()
+  ) {
+    ZoxSplashScreen()
+  }
+  if (showSplash) return
+
   val uiState by viewModel.uiState.collectAsState()
   val userProfile by viewModel.userProfile.collectAsState()
   val wallet by viewModel.wallet.collectAsState()
@@ -434,6 +452,31 @@ fun ZoxSuperApp(
         viewModel.dispatchWebBooking(title, pickup, fare)
       }
     )
+  }
+}
+
+@Composable
+private fun ZoxSplashScreen() {
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .background(
+        androidx.compose.ui.graphics.Brush.radialGradient(
+          listOf(Color(0xFF3A215A), ZoxDarkBackground)
+        )
+      )
+      .testTag("zox_splash_screen"),
+    contentAlignment = Alignment.Center
+  ) {
+    androidx.compose.foundation.layout.Column(
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)
+    ) {
+      ZoxLogoEmblem(size = 112.dp, animated = true, showGlow = true)
+      Text("ZOX SUPER APPS", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
+      Text("Mobility • Logistics • Everyday Services", color = ZoxOrangeAccent, fontSize = 11.sp)
+      CircularProgressIndicator(color = ZoxOrangeAccent, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+    }
   }
 }
 

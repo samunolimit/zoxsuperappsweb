@@ -78,6 +78,11 @@
     .price { color: var(--orange); font-weight: 900; }
     .api-status { color: var(--muted); font-size: 11px; margin: 12px 0 0; text-align: center; }
     .auth-gate { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 18px; background: rgba(10, 10, 18, .94); }
+    .splash { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; background: radial-gradient(circle at center, #3a215a, #10111a 68%); transition: opacity .45s ease, visibility .45s ease; }
+    .splash.hide { opacity: 0; visibility: hidden; pointer-events: none; }
+    .splash-inner { text-align: center; animation: rise-in .6s ease-out both; }
+    .splash-logo { width: 92px; height: 92px; margin: 0 auto 16px; border-radius: 26px; display: grid; place-items: center; background: linear-gradient(135deg, #ff9800, #673ab7); font: 900 58px Georgia, serif; box-shadow: 0 0 42px rgba(255,152,0,.3); animation: shimmer 1.2s ease-in-out infinite; }
+    .splash-title { font-weight: 900; letter-spacing: 2px; }
     .auth-box { width: min(420px, 100%); padding: 26px; border: 1px solid #484568; border-radius: 20px; background: #242436; box-shadow: 0 20px 70px rgba(0,0,0,.5); }
     .auth-box h1 { margin: 0 0 6px; font-size: 22px; }
     .auth-box p { color: var(--muted); font-size: 12px; line-height: 1.5; }
@@ -124,6 +129,7 @@
   </style>
 </head>
 <body>
+  <div class="splash" id="splash"><div class="splash-inner"><div class="splash-logo">Z</div><div class="splash-title">ZOX SUPER APPS</div><div class="tag">Loading services...</div></div></div>
   <div class="auth-gate" id="auth-gate">
     <div class="auth-box">
       <div class="logo">Z</div>
@@ -275,6 +281,7 @@
   </div>
     <script>
       const status = document.getElementById('api-status');
+      window.setTimeout(() => document.getElementById('splash').classList.add('hide'), 1200);
       const authGate = document.getElementById('auth-gate');
       const authError = document.getElementById('auth-error');
       let staffToken = '';
