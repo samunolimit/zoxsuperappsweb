@@ -13,6 +13,7 @@ const faresFile = path.join(dataDir, 'fares.json');
 const walletFile = path.join(dataDir, 'wallet-ledger.json');
 const pluginsFile = path.join(dataDir, 'plugins.json');
 const eventsFile = path.join(dataDir, 'system-events.json');
+const providersFile = path.join(dataDir, 'providers.json');
 fs.mkdirSync(dataDir, { recursive: true });
 
 const initialBookings = [
@@ -51,6 +52,8 @@ function writePlugins(plugins) { fs.writeFileSync(pluginsFile, JSON.stringify(pl
 function readEvents() { if (!fs.existsSync(eventsFile)) fs.writeFileSync(eventsFile, '[]'); return JSON.parse(fs.readFileSync(eventsFile, 'utf8')); }
 function recordEvent(type, message, hint) { const events = readEvents(); events.unshift({ id: crypto.randomUUID(), type, message, hint, status: 'OPEN', createdAt: new Date().toISOString() }); writeEvents(events.slice(0, 100)); }
 function writeEvents(events) { fs.writeFileSync(eventsFile, JSON.stringify(events, null, 2)); }
+function readProviders() { if (!fs.existsSync(providersFile)) fs.writeFileSync(providersFile, '[]'); return JSON.parse(fs.readFileSync(providersFile, 'utf8')); }
+function writeProviders(providers) { fs.writeFileSync(providersFile, JSON.stringify(providers, null, 2)); }
 const sessions = new Map();
 const pinRequests = new Map();
 const adminPhone = process.env.ADMIN_PHONE || '9378160106';
@@ -83,6 +86,16 @@ function sendPage(response) {
 }
 
 const server = http.createServer((request, response) => {
+  if (request.method === 'POST' && request.url === '/api/providers/register') {
+    return readJson(request).then((input) => {
+      const allowed = ['workshop', 'mechanic', 'medical', 'emergency', 'support', 'store'];
+      const service = String(input?.service || '').toLowerCase();
+      const name = String(input?.name || '').trim(); const phone = String(input?.phone || '').replace(/\D/g, ''); const location = String(input?.location || '').trim();
+      if (!allowed.includes(service) || !name || !/^\d{10}$/.test(phone) || !location || !String(input?.details || '').trim()) return sendJson(response, 400, { error: 'Service, name, 10-digit phone, location and details are required' });
+      const provider = { id: crypto.randomUUID(), service: `plugin_${service}`, name, phone, location, details: String(input.details).trim(), status: 'PENDING_REVIEW', createdAt: new Date().toISOString() };
+      const providers = readProviders(); providers.unshift(provider); writeProviders(providers); return sendJson(response, 201, provider);
+    });
+  }
   if (request.method === 'POST' && request.url === '/api/auth/request-pin') {
     return readJson(request).then((input) => {
       if (!input?.phone || ![adminPhone, counterPhone].includes(String(input.phone)) && !readModerators().some((item) => item.phone === String(input.phone))) return sendJson(response, 403, { error: 'Account is not authorized for staff access' });
@@ -124,6 +137,16 @@ const server = http.createServer((request, response) => {
   if (request.method === 'GET' && request.url === '/api/admin/system-events') {
     if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Admin or Moderator access required' });
     return sendJson(response, 200, { events: readEvents().slice(0, 30) });
+  }
+  if (request.method === 'GET' && request.url === '/api/admin/providers') {
+    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Admin or Moderator access required' });
+    return sendJson(response, 200, { providers: readProviders() });
+  }
+  if (request.method === 'POST' && request.url.startsWith('/api/admin/providers/') && request.url.endsWith('/approve')) {
+    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Admin or Moderator access required' });
+    const id = request.url.split('/').slice(-2)[0]; const providers = readProviders(); const index = providers.findIndex((item) => item.id === id);
+    if (index < 0) return sendJson(response, 404, { error: 'Provider application not found' });
+    providers[index].status = 'APPROVED'; providers[index].approvedAt = new Date().toISOString(); writeProviders(providers); return sendJson(response, 200, providers[index]);
   }
   if (request.method === 'POST' && request.url === '/api/admin/moderators') {
     if (!requireRole(request, ['SUPER_ADMIN'])) return sendJson(response, 403, { error: 'Super Admin access required' });

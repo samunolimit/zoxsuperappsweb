@@ -174,6 +174,19 @@
         <div class="tile"><div class="icon">🏪</div>Grocery</div>
         <div class="tile"><div class="icon">📄</div>Bills</div>
       </div>
+      <section class="staff-panel open" style="margin-top:18px">
+        <h2>Become a ZOX Partner</h2>
+        <p class="api-status">Register your Workshop, Mechanic, Medical, Emergency, Support or Store service for review.</p>
+        <form id="provider-form">
+          <select name="service"><option value="workshop">Workshop</option><option value="mechanic">Mechanic</option><option value="medical">Medical</option><option value="emergency">Emergency</option><option value="support">Support</option><option value="store">Store</option></select>
+          <input name="name" placeholder="Business / provider name" required />
+          <input name="phone" inputmode="numeric" maxlength="10" placeholder="10-digit contact number" required />
+          <input name="location" placeholder="Service location" required />
+          <input name="details" placeholder="Services, hours and registration details" required />
+          <button class="book-button">Submit partner registration</button>
+        </form>
+        <div class="api-status" id="provider-result"></div>
+      </section>
       <h2>Motor Hire Fleet</h2>
       <div class="fleet">
         <div class="card"><strong>Royal Enfield Hunter 350</strong><div>Petrol • 2 Seats</div><div class="price">₹120/hr</div></div>
@@ -197,6 +210,8 @@
         <div id="plugin-list"></div>
         <h2>System Notifications & Fix Hints</h2>
         <div id="event-list"></div>
+        <h2>Partner Registrations</h2>
+        <div id="provider-list"></div>
         </div>
         <h2>Operations Queue</h2>
         <form id="operation-form" class="non-counter-tools">
@@ -259,6 +274,7 @@
           loadModerators();
           loadPlugins();
           loadSystemEvents();
+          loadProviders();
           loadOperations();
         } catch (error) { authError.textContent = error.message; }
       });
@@ -280,6 +296,21 @@
         const response = await staffFetch('/api/admin/system-events'); const result = await response.json();
         document.getElementById('event-list').innerHTML = result.events.length ? result.events.map((item) => `<div class="event-row"><strong>${item.type}</strong><br>${item.message}<br><span class="tag">Fix: ${item.hint}</span></div>`).join('') : '<div class="api-status">No system errors reported.</div>';
       };
+      const loadProviders = async () => {
+        if (staffRole === 'COUNTER_STAFF') return;
+        const response = await staffFetch('/api/admin/providers'); const result = await response.json();
+        document.getElementById('provider-list').innerHTML = result.providers.map((item) => `<div class="event-row"><strong>${item.service.replace('plugin_', '')}</strong> · ${item.status}<br>${item.name} · ${item.phone}<br>${item.location}<br>${item.details}${item.status === 'PENDING_REVIEW' ? ` <button class="remove provider-approve" data-id="${item.id}">Approve</button>` : ''}</div>`).join('');
+      };
+      document.getElementById('provider-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const response = await fetch('/api/providers/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(event.target))) });
+        const result = await response.json(); document.getElementById('provider-result').textContent = response.ok ? `Registration received: ${result.id}` : (result.error || 'Registration failed');
+        if (response.ok) event.target.reset();
+      });
+      document.getElementById('provider-list').addEventListener('click', async (event) => {
+        if (!event.target.classList.contains('provider-approve')) return;
+        await staffFetch(`/api/admin/providers/${event.target.dataset.id}/approve`, { method: 'POST' }); loadProviders();
+      });
       document.getElementById('plugin-list').addEventListener('click', async (event) => {
         if (event.target.classList.contains('plugin-config')) {
           const raw = window.prompt('Plugin config JSON', '{}');

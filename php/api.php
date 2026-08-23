@@ -16,6 +16,7 @@ $dataFile = $dataDir . '/zox.json';
 $moderatorsFile = $dataDir . '/moderators.json';
 $authFile = $dataDir . '/auth.json';
 $operationsFile = $dataDir . '/operations.json';
+$providersFile = $dataDir . '/providers.json';
 $faresFile = $dataDir . '/fares.json';
 $walletFile = $dataDir . '/wallet-ledger.json';
 $initialBookings = [
@@ -53,6 +54,13 @@ if ($route === '/api/health' || str_ends_with($route, '/health')) reply(['ok' =>
 $input = json_decode((string) file_get_contents('php://input'), true);
 $current = bookings($dataFile, $dataDir, $initialBookings);
 $staff = staffUser($authFile);
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/providers/register' || str_ends_with($route, '/providers/register'))) {
+    $allowed = ['workshop', 'mechanic', 'medical', 'emergency', 'support', 'store'];
+    $service = strtolower((string) ($input['service'] ?? '')); $name = trim((string) ($input['name'] ?? '')); $phone = preg_replace('/\D/', '', (string) ($input['phone'] ?? '')); $location = trim((string) ($input['location'] ?? '')); $details = trim((string) ($input['details'] ?? ''));
+    if (!in_array($service, $allowed, true) || $name === '' || !preg_match('/^\d{10}$/', $phone) || $location === '' || $details === '') reply(['error' => 'Service, name, 10-digit phone, location and details are required'], 400);
+    $provider = ['id' => bin2hex(random_bytes(12)), 'service' => 'plugin_' . $service, 'name' => $name, 'phone' => $phone, 'location' => $location, 'details' => $details, 'status' => 'PENDING_REVIEW', 'createdAt' => date(DATE_ATOM)];
+    saveStored($providersFile, array_merge([$provider], stored($providersFile))); reply($provider, 201);
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && str_starts_with($route, '/api/counter/')) {
     if (($staff['role'] ?? '') !== 'COUNTER_STAFF') reply(['error' => 'Counter Staff access required'], 403);
     $kind = basename($route);
@@ -113,6 +121,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/auth/verify-pin' 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/admin/moderators' || str_ends_with($route, '/admin/moderators'))) {
     if ((staffUser($authFile)['role'] ?? '') !== 'SUPER_ADMIN') reply(['error' => 'Super Admin access required'], 403);
     reply(['moderators' => stored($moderatorsFile)]);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/admin/providers' || str_ends_with($route, '/admin/providers'))) {
+    if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR'], true)) reply(['error' => 'Admin or Moderator access required'], 403);
+    reply(['providers' => stored($providersFile)]);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && preg_match('#/(?:api/)?admin/providers/([^/]+)/approve$#', $route, $match)) {
+    if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR'], true)) reply(['error' => 'Admin or Moderator access required'], 403);
+    $providers = stored($providersFile);
+    foreach ($providers as $index => $provider) if ($provider['id'] === $match[1]) { $providers[$index]['status'] = 'APPROVED'; $providers[$index]['approvedAt'] = date(DATE_ATOM); saveStored($providersFile, $providers); reply($providers[$index]); }
+    reply(['error' => 'Provider application not found'], 404);
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/admin/moderators' || str_ends_with($route, '/admin/moderators'))) {
     if ((staffUser($authFile)['role'] ?? '') !== 'SUPER_ADMIN') reply(['error' => 'Super Admin access required'], 403);
