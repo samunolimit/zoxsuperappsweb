@@ -580,7 +580,7 @@ fun PluginGridItem(
   ) {
     Box(
       modifier = Modifier
-        .size(54.dp)
+        .size(64.dp)
         .clip(RoundedCornerShape(16.dp))
         .background(
           Brush.linearGradient(
@@ -604,7 +604,7 @@ fun PluginGridItem(
         imageVector = iconVector,
         contentDescription = plugin.title,
         tint = if (plugin.badge != null) ZoxOrangeAccent else Color.White,
-        modifier = Modifier.size(26.dp)
+        modifier = Modifier.size(32.dp)
       )
 
       if (plugin.badge != null) {

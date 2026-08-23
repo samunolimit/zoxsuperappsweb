@@ -24,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Api
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Emergency
+import androidx.compose.material.icons.filled.Handyman
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
@@ -36,6 +38,7 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Refresh
@@ -43,6 +46,7 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
@@ -322,17 +326,29 @@ fun PluginsControlCenterTab(
           ) {
             Box(
               modifier = Modifier
-                .size(42.dp)
+                .size(50.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(
                   if (plugin.isEnabled) ZoxPurplePrimary else Color(0xFF2C2A3C)
                 ),
               contentAlignment = Alignment.Center
             ) {
+              val pluginIcon = when (plugin.iconName) {
+                "build" -> Icons.Default.Build
+                "handyman" -> Icons.Default.Handyman
+                "medical_services" -> Icons.Default.MedicalServices
+                "emergency" -> Icons.Default.Emergency
+                "support_agent" -> Icons.Default.SupportAgent
+                "storefront" -> Icons.Default.Storefront
+                "local_shipping" -> Icons.Default.LocalShipping
+                "videocam" -> Icons.Default.Videocam
+                else -> Icons.Default.Extension
+              }
               Icon(
-                imageVector = Icons.Default.Extension,
-                contentDescription = null,
-                tint = if (plugin.isEnabled) ZoxOrangeAccent else Color(0xFF7A7996)
+                imageVector = pluginIcon,
+                contentDescription = plugin.title,
+                tint = if (plugin.isEnabled) ZoxOrangeAccent else Color(0xFF7A7996),
+                modifier = Modifier.size(28.dp)
               )
             }
 
