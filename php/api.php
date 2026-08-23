@@ -15,6 +15,7 @@ $dataDir = dirname(__DIR__) . '/data';
 $dataFile = $dataDir . '/zox.json';
 $moderatorsFile = $dataDir . '/moderators.json';
 $authFile = $dataDir . '/auth.json';
+$operationsFile = $dataDir . '/operations.json';
 $initialBookings = [
     ['id' => 1, 'service' => 'Motor Hire', 'pickup' => 'Chanmari Hub', 'destination' => 'Chanmari Hub', 'amount' => 480, 'status' => 'ON THE WAY'],
     ['id' => 2, 'service' => 'Tirhkah Express', 'pickup' => 'Civil Hospital', 'destination' => 'Khatla South', 'amount' => 125, 'status' => 'COMPLETED'],
@@ -93,6 +94,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && preg_match('#/(?:api/)?admin/mode
     if (count($next) === count($moderators)) reply(['error' => 'Moderator not found'], 404);
     saveStored($moderatorsFile, $next);
     reply(['ok' => true]);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/admin/operations' || str_ends_with($route, '/admin/operations'))) {
+    $staff = staffUser($authFile);
+    if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR'], true)) reply(['error' => 'Staff access required'], 403);
+    reply(['bookings' => $current, 'operations' => stored($operationsFile)]);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($route === '/api/admin/operations' || str_ends_with($route, '/admin/operations'))) {
+    $staff = staffUser($authFile);
+    if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR'], true)) reply(['error' => 'Staff access required'], 403);
+    $allowed = ['REQUEST', 'COMPLAINT', 'EMERGENCY', 'FEEDBACK', 'ANNOUNCEMENT', 'CASH_REQUEST', 'USER'];
+    $type = (string) ($input['type'] ?? '');
+    $message = trim((string) ($input['message'] ?? ''));
+    if (!in_array($type, $allowed, true) || $message === '') reply(['error' => 'Operation type and message are required'], 400);
+    $operation = ['id' => bin2hex(random_bytes(12)), 'type' => $type, 'message' => $message, 'status' => 'OPEN', 'createdBy' => $staff['phone'], 'createdAt' => date(DATE_ATOM)];
+    saveStored($operationsFile, array_merge([$operation], stored($operationsFile)));
+    reply($operation, 201);
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && preg_match('#/(?:api/)?admin/operations/([^/]+)/approve$#', $route, $match)) {
+    $staff = staffUser($authFile);
+    if (!in_array($staff['role'] ?? '', ['SUPER_ADMIN', 'MODERATOR'], true)) reply(['error' => 'Staff access required'], 403);
+    $operations = stored($operationsFile);
+    foreach ($operations as $index => $operation) if ($operation['id'] === $match[1] && $operation['type'] === 'CASH_REQUEST') {
+        $operations[$index]['status'] = 'APPROVED';
+        $operations[$index]['approvedAt'] = date(DATE_ATOM);
+        saveStored($operationsFile, $operations);
+        reply($operations[$index]);
+    }
+    reply(['error' => 'Cash request not found'], 404);
 }
 
 $current = bookings($dataFile, $dataDir, $initialBookings);

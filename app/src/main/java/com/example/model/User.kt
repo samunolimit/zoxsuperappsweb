@@ -3,6 +3,7 @@ package com.example.model
 enum class UserRole {
   CUSTOMER,
   SUPER_ADMIN,
+  MODERATOR,
   DRIVER,
   TIRHKAH_RUNNER,
   VEHICLE_OWNER,

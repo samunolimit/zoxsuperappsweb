@@ -1,5 +1,5 @@
 RewriteEngine On
 
-RewriteRule ^api/(health|summary|bookings)$ php/api.php [L,QSA]
+RewriteRule ^api/(.*)$ php/api.php [L,QSA]
 RewriteRule ^$ web-preview/index.html [L]
 RewriteRule ^(.*)$ web-preview/$1 [L]

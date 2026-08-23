@@ -105,6 +105,7 @@ fun AdminDashboardScreen(
   vaultConfig: MasterVaultConfig,
   kycQueue: List<KycApplication>,
   routeVehicles: List<com.example.model.RouteVehicle>,
+  staffRole: com.example.model.UserRole = com.example.model.UserRole.SUPER_ADMIN,
   onTogglePlugin: (pluginId: String, enable: Boolean) -> Unit,
   onInstallUninstallPlugin: (pluginId: String, install: Boolean) -> Unit,
   onConfigurePlugin: (pluginId: String) -> Unit,
@@ -181,7 +182,7 @@ fun AdminDashboardScreen(
       tabs.forEachIndexed { index, title ->
         Tab(
           selected = selectedTab == index,
-          onClick = { selectedTab = index },
+          onClick = { if (staffRole == com.example.model.UserRole.SUPER_ADMIN || index != 2) selectedTab = index },
           text = {
             Text(
               text = title,
@@ -212,9 +213,11 @@ fun AdminDashboardScreen(
       2 -> SystemOpsMaintenanceTab(
         systemConfig = localConfig.system,
         onSaveSystemConfig = { updatedSys ->
-          val updated = localConfig.copy(system = updatedSys)
-          localConfig = updated
-          onSaveVaultConfig(updated)
+          if (staffRole == com.example.model.UserRole.SUPER_ADMIN) {
+            val updated = localConfig.copy(system = updatedSys)
+            localConfig = updated
+            onSaveVaultConfig(updated)
+          }
         }
       )
       3 -> AdminWebConsoleTab(

@@ -125,7 +125,7 @@ fun ZoxSuperApp(
   }
 
   // 1.5. Full System Maintenance Mode Gate (Protects Non-Admin Users with Emergency Bypass)
-  if (vaultConfig.system.isMaintenanceMode && userProfile.role != UserRole.SUPER_ADMIN && !uiState.isMaintenanceBypassed) {
+  if (vaultConfig.system.isMaintenanceMode && userProfile.role != UserRole.SUPER_ADMIN && userProfile.role != UserRole.MODERATOR && !uiState.isMaintenanceBypassed) {
     MaintenanceModeScreen(
       maintenanceConfig = vaultConfig.system,
       onAdminBypassSuccess = { viewModel.setMaintenanceBypassed(true) },
@@ -338,6 +338,7 @@ fun ZoxSuperApp(
             vaultConfig = vaultConfig,
             kycQueue = kycQueue,
             routeVehicles = routeVehicles,
+            staffRole = userProfile.role,
             onTogglePlugin = { id, enabled -> viewModel.togglePlugin(id, enabled) },
             onInstallUninstallPlugin = { id, installed -> viewModel.installUninstallPlugin(id, installed) },
             onConfigurePlugin = { id -> viewModel.togglePluginConfigModal(true, id) },

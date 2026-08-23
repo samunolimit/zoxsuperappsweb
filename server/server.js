@@ -8,6 +8,7 @@ const webRoot = path.join(__dirname, '..', 'web-preview');
 const dataDir = path.join(__dirname, '..', 'data');
 const dataFile = path.join(dataDir, 'zox.json');
 const moderatorsFile = path.join(dataDir, 'moderators.json');
+const operationsFile = path.join(dataDir, 'operations.json');
 fs.mkdirSync(dataDir, { recursive: true });
 
 const initialBookings = [
@@ -24,6 +25,11 @@ function readModerators() {
   return JSON.parse(fs.readFileSync(moderatorsFile, 'utf8'));
 }
 function writeModerators(moderators) { fs.writeFileSync(moderatorsFile, JSON.stringify(moderators, null, 2)); }
+function readOperations() {
+  if (!fs.existsSync(operationsFile)) fs.writeFileSync(operationsFile, '[]');
+  return JSON.parse(fs.readFileSync(operationsFile, 'utf8'));
+}
+function writeOperations(operations) { fs.writeFileSync(operationsFile, JSON.stringify(operations, null, 2)); }
 const sessions = new Map();
 const pinRequests = new Map();
 const adminPhone = process.env.ADMIN_PHONE || '9378160106';
@@ -98,6 +104,30 @@ const server = http.createServer((request, response) => {
     if (next.length === moderators.length) return sendJson(response, 404, { error: 'Moderator not found' });
     writeModerators(next);
     return sendJson(response, 200, { ok: true });
+  }
+  if (request.method === 'GET' && request.url === '/api/admin/operations') {
+    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Staff access required' });
+    return sendJson(response, 200, { bookings: readBookings(), operations: readOperations() });
+  }
+  if (request.method === 'POST' && request.url === '/api/admin/operations') {
+    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Staff access required' });
+    return readJson(request).then((input) => {
+      const allowedTypes = ['REQUEST', 'COMPLAINT', 'EMERGENCY', 'FEEDBACK', 'ANNOUNCEMENT', 'CASH_REQUEST', 'USER'];
+      if (!allowedTypes.includes(input?.type) || !String(input?.message || '').trim()) return sendJson(response, 400, { error: 'Operation type and message are required' });
+      const user = authUser(request);
+      const operation = { id: crypto.randomUUID(), type: input.type, message: String(input.message).trim(), status: 'OPEN', createdBy: user.phone, createdAt: new Date().toISOString() };
+      const operations = readOperations(); operations.unshift(operation); writeOperations(operations);
+      return sendJson(response, 201, operation);
+    });
+  }
+  if (request.method === 'POST' && request.url.startsWith('/api/admin/operations/') && request.url.endsWith('/approve')) {
+    if (!requireRole(request, ['SUPER_ADMIN', 'MODERATOR'])) return sendJson(response, 403, { error: 'Staff access required' });
+    const id = request.url.split('/').slice(-2)[0];
+    const operations = readOperations();
+    const index = operations.findIndex((item) => item.id === id && item.type === 'CASH_REQUEST');
+    if (index < 0) return sendJson(response, 404, { error: 'Cash request not found' });
+    operations[index].status = 'APPROVED'; operations[index].approvedAt = new Date().toISOString();
+    writeOperations(operations); return sendJson(response, 200, operations[index]);
   }
   if (request.method === 'GET' && request.url === '/api/health') return sendJson(response, 200, { ok: true, service: 'zox-api' });
   if (request.method === 'GET' && request.url === '/api/summary') {
