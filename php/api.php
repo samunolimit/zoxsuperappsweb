@@ -44,9 +44,9 @@ function stored(string $file, string $default = '[]'): array {
 }
 function saveStored(string $file, array $value): void { file_put_contents($file, json_encode($value, JSON_PRETTY_PRINT), LOCK_EX); }
 function staffUser(string $authFile): ?array {
-    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
     $token = preg_replace('/^Bearer\s+/i', '', $header);
-    foreach (stored($authFile) as $session) if (hash_equals($session['token'], $token) && $session['expiresAt'] > time()) return $session;
+    foreach (stored($authFile) as $session) if (!empty($session['token']) && !empty($session['expiresAt']) && hash_equals((string) $session['token'], (string) $token) && $session['expiresAt'] > time()) return $session;
     return null;
 }
 
@@ -217,7 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($route === '/api/summary' || str_en
     if (!$staff) reply(['error' => 'Login required'], 401);
     reply([
         'user' => ['name' => 'Lalremruata Ralte', 'city' => 'Aizawl, Mizoram', 'wallet' => 1450, 'coins' => 380],
-        'metrics' => ['activeBookings' => count(array_filter($current, fn ($booking) => ($booking['status'] ?? '') !== 'COMPLETED'), 'totalBookings' => count($current)],
+        'metrics' => ['activeBookings' => count(array_filter($current, fn ($booking) => ($booking['status'] ?? '') !== 'COMPLETED')), 'totalBookings' => count($current)],
         'bookings' => $current,
     ]);
 }
